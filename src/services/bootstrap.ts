@@ -104,11 +104,13 @@ class AppServices {
     const stored = await readPersistedTokens();
     if (stored?.access) {
       try {
-        const pair = createSdkPair(stored.userUrl, stored.metaUrl);
+        // 服务地址一律以 .env（env.*）为准，持久化仅保留 token：
+        // 修改 .env 切换环境后，已登录用户刷新页面即生效，无需重新登录。
+        const pair = createSdkPair(env.userUrl, env.metaUrl);
         pair.userSdk.setToken(stored.access, stored.refresh);
         const profile = await pair.userSdk.users.getMe();
         this.pair = pair;
-        this.initBusiness(pair, stored.chatUrl, toUserProfile(profile));
+        this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
         this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
         return;
       } catch {
@@ -249,6 +251,11 @@ class AppServices {
 
   requireCPChat() {
     return getCPChat();
+  }
+
+  /** 当前 access token（图片上传等需要直连鉴权服务的场景使用；未登录返回 null） */
+  getAccessToken(): string | null {
+    return this.pair?.userSdk.getToken() ?? null;
   }
 }
 

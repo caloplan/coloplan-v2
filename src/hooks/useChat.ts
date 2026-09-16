@@ -5,7 +5,12 @@
  * Demo 路径：RN → DemoChat（src/demo，仅原型）
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ChatClient, ChatSession, PendingAction } from "caloplan-chat";
+import type {
+  ChatClient,
+  ChatSession,
+  ChatContentBlock,
+  PendingAction,
+} from "caloplan-chat";
 import { isChatError } from "caloplan-chat";
 import { useIsDemo } from "./useAuth";
 import { appServices } from "@/services/bootstrap";
@@ -53,7 +58,7 @@ export interface ChatViewModel {
   createSession: () => Promise<void>;
   selectSession: (id: string) => void;
   deleteSession: (id: string) => Promise<void>;
-  send: (text: string) => Promise<void>;
+  send: (text: string | ChatContentBlock[]) => Promise<void>;
   confirm: () => Promise<void>;
   cancel: () => Promise<void>;
   clearError: () => void;
@@ -154,8 +159,13 @@ export function useChat(): ChatViewModel {
   );
 
   const send = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
+    async (text: string | ChatContentBlock[]) => {
+      const trimmed =
+        typeof text === "string"
+          ? text.trim()
+          : text.length > 0 && text.some((b) => (b.type === "text" ? (b.text ?? "").trim() : Boolean(b.imageUrl)))
+            ? text
+            : "";
       if (!trimmed || !activeSessionId || sending) return;
       setSending(true);
       setError(null);

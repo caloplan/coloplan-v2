@@ -7,12 +7,17 @@
 import { useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { ScrollViewInstance } from "react-native";
+import type { ChatContentBlock } from "caloplan-chat";
 import { colors, layout, radius, spacing, typography } from "@/theme";
 import { LoadingState, EmptyState } from "@/components/State";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { PendingActionCard } from "@/components/PendingActionCard";
 import { useChat } from "@/hooks/useChat";
+import { appServices } from "@/services/bootstrap";
+import { env } from "@/services/env";
+import { uploadImage } from "@/services/upload";
+import { DEMO_IMAGE_URL } from "@/demo/demoData";
 
 export function AIScreen() {
   const chat = useChat();
@@ -22,8 +27,19 @@ export function AIScreen() {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [chat.activeSession?.messages.length, chat.activeSession?.messages.at(-1)?.content, chat.pendingAction]);
 
-  const handleSend = (text: string) => {
-    void chat.send(text);
+  const handleSend = (content: string | ChatContentBlock[]) => {
+    void chat.send(content);
+  };
+
+  /** 图片上传：登录态直连 fastapi-file-service；Demo 模式模拟（不进入真实链路） */
+  const handleUploadImage = async (file: File): Promise<string> => {
+    if (chat.isDemo) {
+      await new Promise((r) => setTimeout(r, 500));
+      return DEMO_IMAGE_URL;
+    }
+    const token = appServices.getAccessToken();
+    if (!token) throw new Error("未登录，无法上传图片");
+    return uploadImage(file, { baseURL: env.fileUrl, token });
   };
 
   return (
@@ -125,6 +141,7 @@ export function AIScreen() {
         <ChatInput
           sending={chat.sending}
           disabled={!chat.activeSession}
+          uploadImage={handleUploadImage}
           onSend={handleSend}
         />
       </View>

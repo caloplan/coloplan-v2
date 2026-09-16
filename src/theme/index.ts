@@ -9,6 +9,7 @@ export const colors = {
   surface: "#FFFFFF",
   surfaceMuted: "#F0F0ED",
   divider: "#E7E7E2",
+  border: "#E2E2DD",
 
   // 文本
   text: "#191919",

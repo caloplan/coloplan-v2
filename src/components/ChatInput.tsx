@@ -1,65 +1,241 @@
-/** 聊天输入条（AI 页）。 */
-import { useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+/**
+ * 聊天输入条（AI 页）。
+ *
+ * 支持附加图片：选图 → 上传（fastapi-file-service）→ 预览缩略图 → 发送时
+ * 组装成 caloplan-chat 内容块数组（text + image_url），交由 useChat.send 发送。
+ * 未传入 uploadImage（如非 Web 环境）时仅显示文本输入。
+ */
+import { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import type { ChatContentBlock } from "caloplan-chat";
 import { colors, radius, spacing, typography } from "@/theme";
 
 interface ChatInputProps {
   disabled?: boolean;
   sending?: boolean;
   placeholder?: string;
-  onSend: (text: string) => void;
+  /** 上传回调：入参为选中的图片文件，返回可公开访问的 url；不传则隐藏图片按钮 */
+  uploadImage?: (file: File) => Promise<string>;
+  onSend: (content: string | ChatContentBlock[]) => void;
 }
 
 export function ChatInput({
   disabled,
   sending,
   placeholder = "问 CaloPlan…",
+  uploadImage,
   onSend,
 }: ChatInputProps) {
   const [text, setText] = useState("");
-  const canSend = !disabled && !sending && text.trim().length > 0;
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const hasImageSupport = typeof uploadImage === "function";
+  const canSend =
+    !disabled && !sending && !uploading && (text.trim().length > 0 || images.length > 0);
+
+  /* 懒挂载隐藏文件选择框（RN Web：input 不进入 RN 组件树） */
+  useEffect(() => {
+    if (!hasImageSupport || typeof document === "undefined") return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.style.display = "none";
+    input.addEventListener("change", handleFileChange);
+    document.body.appendChild(input);
+    fileInputRef.current = input;
+    return () => {
+      input.removeEventListener("change", handleFileChange);
+      input.remove();
+      fileInputRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasImageSupport]);
+
+  const handleFileChange = async (ev: Event) => {
+    const file = (ev.target as HTMLInputElement).files?.[0];
+    if (!file || !uploadImage) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadImage(file);
+      setImages((prev) => [...prev, url]);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const pickImage = () => {
+    if (!hasImageSupport || uploading) return;
+    fileInputRef.current?.click();
+  };
+
+  const removeImage = (url: string) => {
+    setImages((prev) => prev.filter((u) => u !== url));
+  };
 
   const submit = () => {
     if (!canSend) return;
-    onSend(text);
+    if (images.length > 0) {
+      const blocks: ChatContentBlock[] = [
+        ...(text.trim()
+          ? [{ type: "text" as const, text: text.trim() }]
+          : []),
+        ...images.map((url) => ({ type: "image_url" as const, imageUrl: url })),
+      ];
+      onSend(blocks);
+    } else {
+      onSend(text);
+    }
     setText("");
+    setImages([]);
+    setUploadError(null);
   };
 
   return (
     <View style={styles.wrap}>
-      <TextInput
-        style={styles.input}
-        value={text}
-        onChangeText={setText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
-        multiline
-        maxLength={2000}
-        editable={!disabled && !sending}
-        onSubmitEditing={submit}
-        returnKeyType="send"
-        blurOnSubmit={false}
-      />
-      <TouchableOpacity
-        style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
-        onPress={submit}
-        disabled={!canSend}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.sendText, !canSend && styles.sendTextDisabled]}>
-          {sending ? "…" : "发送"}
-        </Text>
-      </TouchableOpacity>
+      {images.length > 0 || uploading ? (
+        <View style={styles.thumbRow}>
+          {images.map((url) => (
+            <View key={url} style={styles.thumb}>
+              <Image source={{ uri: url }} style={styles.thumbImage} />
+              <TouchableOpacity
+                style={styles.thumbRemove}
+                onPress={() => removeImage(url)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={styles.thumbRemoveText}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+          {uploading ? (
+            <View style={[styles.thumb, styles.thumbUploading]}>
+              <ActivityIndicator size="small" color={colors.textTertiary} />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+      {uploadError ? <Text style={styles.uploadError}>{uploadError}</Text> : null}
+
+      <View style={styles.inputRow}>
+        {hasImageSupport ? (
+          <TouchableOpacity
+            style={[styles.imageBtn, uploading && styles.imageBtnDisabled]}
+            onPress={pickImage}
+            disabled={!hasImageSupport || uploading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.imageBtnText}>＋</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TextInput
+          style={styles.input}
+          value={text}
+          onChangeText={setText}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textTertiary}
+          multiline
+          maxLength={2000}
+          editable={!disabled && !sending}
+          onSubmitEditing={submit}
+          returnKeyType="send"
+          blurOnSubmit={false}
+        />
+        <TouchableOpacity
+          style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
+          onPress={submit}
+          disabled={!canSend}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.sendText, !canSend && styles.sendTextDisabled]}>
+            {sending ? "…" : "发送"}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
+    gap: spacing.sm,
+  },
+  thumbRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  thumb: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.md,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceMuted,
+  },
+  thumbUploading: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbImage: {
+    width: "100%",
+    height: "100%",
+  },
+  thumbRemove: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "rgba(15,23,42,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thumbRemoveText: {
+    ...typography.caption,
+    color: "#fff",
+    lineHeight: 14,
+  },
+  uploadError: {
+    ...typography.caption,
+    color: colors.danger,
+  },
+  inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: spacing.sm,
-    paddingTop: spacing.sm,
+  },
+  imageBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageBtnDisabled: {
+    opacity: 0.5,
+  },
+  imageBtnText: {
+    ...typography.label,
+    fontSize: 20,
+    color: colors.textSecondary,
+    lineHeight: 22,
   },
   input: {
     flex: 1,

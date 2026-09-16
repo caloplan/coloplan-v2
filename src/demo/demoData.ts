@@ -13,6 +13,10 @@ import { todayString } from "@/utils/date";
 
 /* ── 食物与营养 ── */
 
+/** Demo 模式模拟上传返回的占位图片 URL（真实链路登录后走 fastapi-file-service） */
+export const DEMO_IMAGE_URL =
+  "https://placehold.co/480x360/e8f0fe/2f6feb?text=Demo+Meal";
+
 function food(id: string, name: string, energy: number, carbon: number, protein: number, fat: number, salt: number): Food {
   return {
     id,

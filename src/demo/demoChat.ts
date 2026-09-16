@@ -11,6 +11,7 @@
 import type {
   ChatSession,
   ChatMessage,
+  ChatContentBlock,
   ChatStreamEvent,
   ChatSendResult,
   ChatConfirmResult,
@@ -25,6 +26,23 @@ let seedCounter = 0;
 function nextId(prefix: string): string {
   seedCounter += 1;
   return `${prefix}-demo-${Date.now()}-${seedCounter}`;
+}
+
+/** 提取发送内容的纯文本（内容块数组时拼接 text 块；assistant 侧恒为 string） */
+function toText(content: string | ChatContentBlock[]): string {
+  if (typeof content === "string") return content;
+  return content
+    .map((b) => (b.type === "text" ? b.text ?? "" : "[图片]"))
+    .join(" ")
+    .trim();
+}
+
+/** 发送内容是否携带图片（image_url 块） */
+function hasImage(content: string | ChatContentBlock[]): boolean {
+  return (
+    Array.isArray(content) &&
+    content.some((b) => b.type === "image_url" && Boolean(b.imageUrl))
+  );
 }
 
 /** 关键词 → mock 回复 */
@@ -117,22 +135,27 @@ export class DemoChat {
 
   async *sendMessage(
     sessionId: string,
-    content: string,
+    content: string | ChatContentBlock[],
   ): AsyncGenerator<ChatStreamEvent, void, unknown> {
     const session = this.requireSession(sessionId);
-    const trimmed = content.trim();
-    if (!trimmed) throw new Error("消息内容不能为空");
+    if (typeof content === "string" && !content.trim()) {
+      throw new Error("消息内容不能为空");
+    }
+    if (Array.isArray(content) && content.length === 0) {
+      throw new Error("消息内容不能为空");
+    }
 
     const userMessage: ChatMessage = {
       id: nextId("m"),
       role: "user",
-      content: trimmed,
+      content,
       status: "completed",
       createdAt: Date.now(),
     };
     session.messages.push(userMessage);
+    const titleSeed = toText(content);
     if (session.title === "") {
-      session.title = trimmed.length > 24 ? `${trimmed.slice(0, 24)}…` : trimmed;
+      session.title = titleSeed.length > 24 ? `${titleSeed.slice(0, 24)}…` : titleSeed;
     }
     session.updatedAt = Date.now();
 
@@ -146,9 +169,12 @@ export class DemoChat {
     session.messages.push(assistantMessage);
 
     // 触发审批的演示词：消息含「记录/加入」时走审批流（确定性触发，便于演示）
-    const needsApproval = /记录|加入/.test(trimmed);
+    const needsApproval = /记录|加入/.test(titleSeed);
 
-    const full = mockReply(trimmed);
+    // 带图消息：演示"图片识别"话术（真实链路由 deepseek-flash 视觉能力完成）
+    const full = hasImage(content)
+      ? `已收到你发的图片。从画面看，这像是一份主食 + 蛋白质 + 蔬菜的组合餐，估算约 450-550 kcal，蛋白质约 30-40g。需要我把这餐估算写入今日记录吗？`
+      : mockReply(titleSeed);
     const step = Math.max(6, Math.ceil(full.length / 14));
     let accumulated = "";
 
