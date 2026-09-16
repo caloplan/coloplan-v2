@@ -2,7 +2,8 @@
  * Today — 主落地页：身体数据、营养目标、今日进度、今日餐食、快捷操作。
  * 回答「我今天状态如何？」（数秒内可读）。
  */
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { LoadingState, ErrorState, EmptyState } from "@/components/State";
 import { NutritionSummary } from "@/components/NutritionSummary";
@@ -26,6 +27,21 @@ interface TodayScreenProps {
 
 export function TodayScreen({ onNavigate }: TodayScreenProps) {
   const view = useToday();
+  const [weighOpen, setWeighOpen] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
+  const [waterOpen, setWaterOpen] = useState(false);
+
+  const openWeigh = () => {
+    setWeightInput(view.body ? String(view.body.weight) : "");
+    setWeighOpen(true);
+  };
+
+  const submitWeight = async () => {
+    const w = parseFloat(weightInput);
+    if (!(w > 0)) return;
+    setWeighOpen(false);
+    await view.updateWeight(w);
+  };
 
   const handleQuickAction = (key: string) => {
     switch (key) {
@@ -36,10 +52,10 @@ export function TodayScreen({ onNavigate }: TodayScreenProps) {
         onNavigate("ai");
         break;
       case "weigh":
-        Alert.alert("称体重", "原型阶段：请稍后到「身体数据」入口记录体重。");
+        openWeigh();
         break;
       case "water":
-        Alert.alert("喝水提醒", "建议每天 8 杯水（约 2L），少量多次饮用。");
+        setWaterOpen(true);
         break;
     }
   };
@@ -112,6 +128,70 @@ export function TodayScreen({ onNavigate }: TodayScreenProps) {
           <QuickAction key={item.key} item={item} onPress={handleQuickAction} />
         ))}
       </View>
+
+      {/* 称体重：输入今日体重 → 写入 caloplan-user body */}
+      <Modal
+        visible={weighOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setWeighOpen(false)}
+      >
+        <View style={styles.modalMask}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>记录今日体重</Text>
+            <View style={styles.weightRow}>
+              <TextInput
+                style={styles.weightInput}
+                keyboardType="numeric"
+                placeholder="例如 62.5"
+                placeholderTextColor={colors.textTertiary}
+                value={weightInput}
+                onChangeText={setWeightInput}
+                autoFocus
+              />
+              <Text style={styles.weightUnit}>kg</Text>
+            </View>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnGhost]}
+                onPress={() => setWeighOpen(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalBtnGhostText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                onPress={() => void submitWeight()}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnPrimaryText}>保存</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 喝水提醒 */}
+      <Modal
+        visible={waterOpen}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setWaterOpen(false)}
+      >
+        <View style={styles.modalMask}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>喝水提醒</Text>
+            <Text style={styles.modalBody}>建议每天 8 杯水（约 2L），少量多次饮用。</Text>
+            <TouchableOpacity
+              style={[styles.modalBtn, styles.modalBtnPrimary, styles.modalBtnFull]}
+              onPress={() => setWaterOpen(false)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalBtnPrimaryText}>知道了</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -184,5 +264,74 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
+  },
+  modalMask: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  modal: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalTitle: {
+    ...typography.section,
+    color: colors.text,
+  },
+  modalBody: {
+    ...typography.body,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  weightRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  weightInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.divider,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    ...typography.body,
+    color: colors.text,
+  },
+  weightUnit: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  modalBtn: {
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+  },
+  modalBtnGhost: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  modalBtnGhostText: {
+    ...typography.label,
+    color: colors.textSecondary,
+  },
+  modalBtnPrimary: {
+    backgroundColor: colors.accent,
+  },
+  modalBtnPrimaryText: {
+    ...typography.label,
+    color: "#FFFFFF",
+  },
+  modalBtnFull: {
+    alignSelf: "stretch",
+    alignItems: "center",
   },
 });

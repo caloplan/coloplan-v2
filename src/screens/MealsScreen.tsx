@@ -1,6 +1,9 @@
 /**
- * Meals — 食物与餐食管理：早/午/晚/加餐，食物条目、营养信息、添加/编辑。
- * 业务逻辑来自 caloplan-core（创建/更新餐食经实体工厂 + 仓储）。
+ * Meals — 食物与餐食管理：早/午/晚/加餐，食物条目、营养信息。
+ * 业务逻辑来自 caloplan-core（读取餐食列表、向已有餐食添加/调整食物）。
+ *
+ * 餐食「创建」由 AI 完成（AI 页推荐餐食 → 用户确认 → 写入今日记录），
+ * 本页不提供手动新建餐食入口；空态引导用户去 AI 页让 AI 记餐。
  */
 import { useState } from "react";
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -11,8 +14,13 @@ import { MealCard } from "@/components/MealCard";
 import { FoodItem } from "@/components/FoodItem";
 import { colors, radius, spacing, typography } from "@/theme";
 import { useMeals } from "@/hooks/useMeals";
+import type { MainTab } from "@/components/HeaderNavigation";
 
-export function MealsScreen() {
+interface MealsScreenProps {
+  onNavigate: (tab: MainTab) => void;
+}
+
+export function MealsScreen({ onNavigate }: MealsScreenProps) {
   const view = useMeals();
   const [targetMeal, setTargetMeal] = useState<Meal | null>(null);
 
@@ -52,7 +60,16 @@ export function MealsScreen() {
       </View>
 
       {!hasMeals ? (
-        <EmptyState title="还没有餐食" hint="从「添加食物」开始记录第一餐" />
+        <View style={styles.emptyWrap}>
+          <EmptyState title="还没有餐食" hint="让 AI 帮你记下今天的第一餐" />
+          <TouchableOpacity
+            style={styles.aiBtn}
+            onPress={() => onNavigate("ai")}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.aiBtnText}>去 AI 记餐</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         view.groups.map(
           (group) =>
@@ -82,7 +99,7 @@ export function MealsScreen() {
         )
       )}
 
-      {/* 添加食物弹层 */}
+      {/* 添加食物弹层（向已有餐食补充食物，不新建餐食） */}
       <Modal
         visible={targetMeal != null}
         animationType="slide"
@@ -149,6 +166,21 @@ const styles = StyleSheet.create({
   },
   demoBadgeText: {
     ...typography.caption,
+    color: "#FFFFFF",
+  },
+  emptyWrap: {
+    gap: spacing.lg,
+    alignItems: "center",
+    paddingTop: spacing.xl,
+  },
+  aiBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm + 2,
+  },
+  aiBtnText: {
+    ...typography.label,
     color: "#FFFFFF",
   },
   group: { gap: spacing.sm, marginBottom: spacing.xl },

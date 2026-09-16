@@ -19,6 +19,7 @@ import {
 import { useAuth, useIsDemo } from "./useAuth";
 import { appServices } from "@/services/bootstrap";
 import { mockMeals, mockFoodLibrary } from "@/demo/demoData";
+import { todayString } from "@/utils/date";
 
 export interface MealGroup {
   type: MealType;

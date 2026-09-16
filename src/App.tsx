@@ -47,7 +47,7 @@ export default function App() {
   } else if (tab === "today") {
     content = <TodayScreen onNavigate={navigate} />;
   } else if (tab === "meals") {
-    content = <MealsScreen />;
+    content = <MealsScreen onNavigate={navigate} />;
   } else {
     content = <AIScreen />;
   }

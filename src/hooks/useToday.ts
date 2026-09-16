@@ -40,6 +40,8 @@ export interface TodayViewModel {
   macros: MacroPoint[];
   quickActions: QuickActionItem[];
   refresh: () => void;
+  /** 记录今日体重（真实模式走 caloplan-user body create/update） */
+  updateWeight: (weightKg: number) => Promise<void>;
 }
 
 function emptyNutrition(): Nutrition {
@@ -118,6 +120,50 @@ export function useToday(): TodayViewModel {
     void load();
   }, [load]);
 
+  /** 记录今日体重：有今日记录则 update，没有则 create（age/height 沿用现有身体数据，缺省 0） */
+  const updateWeight = useCallback(
+    async (weightKg: number) => {
+      if (!(weightKg > 0)) return;
+      if (isDemo) {
+        setBody((prev) =>
+          prev
+            ? { ...prev, weight: weightKg }
+            : {
+                id: "demo",
+                user_id: "demo",
+                date: todayString(),
+                age: 0,
+                height: 0,
+                weight: weightKg,
+                created_time: new Date().toISOString(),
+                updated_time: null,
+              },
+        );
+        return;
+      }
+      if (auth.status !== "authenticated") return;
+      try {
+        const cpUser = appServices.requireCPUser();
+        const today = todayString();
+        const existing = await cpUser.body.getByDate(today);
+        if (existing) {
+          await cpUser.body.update({ id: existing.id, weight: weightKg });
+        } else {
+          await cpUser.body.create({
+            date: today,
+            age: body?.age ?? 0,
+            height: body?.height ?? 0,
+            weight: weightKg,
+          });
+        }
+        await load();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [isDemo, auth.status, body, load],
+  );
+
   const view = useMemo<TodayViewModel>(() => {
     const consumed = meals.length > 0 ? sumNutrition(meals) : emptyNutrition();
     const calorieConsumed = totalKcal(consumed);
@@ -142,8 +188,9 @@ export function useToday(): TodayViewModel {
       macros: buildMacroPoints(consumed, macroTargets),
       quickActions: mockQuickActions,
       refresh: () => void load(),
+      updateWeight,
     };
-  }, [loading, isDemo, error, body, goal, meals, load]);
+  }, [loading, isDemo, error, body, goal, meals, load, updateWeight]);
 
   return view;
 }
