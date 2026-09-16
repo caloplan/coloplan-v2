@@ -61,13 +61,13 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
 
       {!hasMeals ? (
         <View style={styles.emptyWrap}>
-          <EmptyState title="还没有餐食" hint="让 AI 帮你记下今天的第一餐" />
+          <EmptyState title="还没有餐食" hint="告诉 AI 今天吃了什么，自动帮你记下来" />
           <TouchableOpacity
             style={styles.aiBtn}
             onPress={() => onNavigate("ai")}
             activeOpacity={0.8}
           >
-            <Text style={styles.aiBtnText}>去 AI 记餐</Text>
+            <Text style={styles.aiBtnText}>去问 AI</Text>
           </TouchableOpacity>
         </View>
       ) : (

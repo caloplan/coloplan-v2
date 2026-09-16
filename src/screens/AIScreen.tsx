@@ -152,6 +152,7 @@ export function AIScreen() {
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
+    minHeight: 0,
     width: "100%",
     maxWidth: layout.maxWidth,
     alignSelf: "center",
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.textOnAccent,
   },
-  messages: { flex: 1 },
+  messages: { flex: 1, minHeight: 0 },
   messagesContent: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,

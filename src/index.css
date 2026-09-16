@@ -1,7 +1,5 @@
-/**
- * 全局基础样式（react-native-web 之上的最小补充）。
- * 移动优先：全宽布局，桌面端由组件内 maxWidth 居中。
- */
+﻿/**
+ * 鍏ㄥ眬鍩虹鏍峰紡锛坮eact-native-web 涔嬩笂鐨勬渶灏忚ˉ鍏咃級銆? * 绉诲姩浼樺厛锛氬叏瀹藉竷灞€锛屾闈㈢鐢辩粍浠跺唴 maxWidth 灞呬腑銆? */
 :root {
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC",
@@ -20,8 +18,12 @@ body,
   margin: 0;
   padding: 0;
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   background: #f6f6f4;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 #root {
@@ -33,15 +35,16 @@ body,
   box-sizing: border-box;
 }
 
-/* 移动端触控反馈 / 输入框基础 */
+/* 绉诲姩绔Е鎺у弽棣?/ 杈撳叆妗嗗熀纭€ */
 input,
 textarea {
   outline: none;
 }
 
-/* 桌面端更宽的阅读环境 */
+/* 妗岄潰绔洿瀹界殑闃呰鐜 */
 @media (min-width: 720px) {
   html {
     background: #f0f0ed;
   }
 }
+

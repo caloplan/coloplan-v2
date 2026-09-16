@@ -10,6 +10,7 @@ import type { Meal, Nutrition } from "caloplan-core";
 import type { UserBodyProfile, UserNutritionGoal } from "caloplan-user";
 import { useAuth, useIsDemo } from "./useAuth";
 import { appServices } from "@/services/bootstrap";
+import { swrLoad, dataCache } from "@/services/cache";
 import { todayString } from "@/utils/date";
 import {
   buildMacroPoints,
@@ -21,9 +22,23 @@ import {
   mockBody,
   mockNutritionGoal,
   mockMeals,
-  mockQuickActions,
 } from "@/demo/demoData";
-import type { QuickActionItem } from "@/demo/demoData";
+
+/** 今日运动记录（原型阶段：经 caloplan-cache 持久化到 localStorage） */
+export interface ExerciseRecord {
+  id: string;
+  name: string;
+  durationMin: number;
+  kcal: number;
+  createdAt: number;
+}
+
+/** 今日页 SWR 缓存载荷（body + 当日营养目标 + 当日餐食） */
+interface TodayCache {
+  body: UserBodyProfile | null;
+  goal: UserNutritionGoal | null;
+  meals: Meal[];
+}
 
 export interface TodayViewModel {
   loading: boolean;
@@ -38,10 +53,33 @@ export interface TodayViewModel {
   /** 0-1+，展示层封顶 1 */
   calorieRatio: number;
   macros: MacroPoint[];
-  quickActions: QuickActionItem[];
+  exercises: ExerciseRecord[];
+  exerciseKcal: number;
   refresh: () => void;
   /** 记录今日体重（真实模式走 caloplan-user body create/update） */
   updateWeight: (weightKg: number) => Promise<void>;
+  /** 记录一条今日运动（名称 / 时长分钟 / 消耗 kcal） */
+  addExercise: (input: { name: string; durationMin: number; kcal: number }) => Promise<void>;
+}
+
+/* ── 运动记录持久化（经 caloplan-cache → localStorage，业务无关缓存） ── */
+
+const EXERCISE_CACHE_KEY = "caloplan_exercise_records";
+
+interface ExerciseStore {
+  date: string;
+  records: ExerciseRecord[];
+}
+
+let exerciseCache: ReturnType<typeof dataCache> | null = null;
+let exerciseStore: ExerciseStore = { date: "", records: [] };
+
+function getExerciseCache() {
+  if (exerciseCache == null) {
+    exerciseCache = dataCache();
+    exerciseCache.register(EXERCISE_CACHE_KEY, () => exerciseStore);
+  }
+  return exerciseCache;
 }
 
 function emptyNutrition(): Nutrition {
@@ -81,12 +119,14 @@ export function useToday(): TodayViewModel {
   const [body, setBody] = useState<UserBodyProfile | null>(null);
   const [goal, setGoal] = useState<UserNutritionGoal | null>(null);
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [exercises, setExercises] = useState<ExerciseRecord[]>([]);
 
   const load = useCallback(async () => {
     if (isDemo) {
       setBody(mockBody);
       setGoal(mockNutritionGoal);
       setMeals(mockMeals);
+      setExercises([]);
       setError(null);
       setLoading(false);
       return;
@@ -101,14 +141,36 @@ export function useToday(): TodayViewModel {
       const cpUser = appServices.requireCPUser();
       const cpCore = appServices.requireCPCore();
       const today = todayString();
-      const [bodyRes, goalRes, mealsRes] = await Promise.all([
-        cpUser.body.getByDate(today),
-        cpUser.nutrition.getByDate(today),
-        cpCore.meal.listMine(),
-      ]);
-      setBody(bodyRes);
-      setGoal(goalRes);
-      setMeals(pickTodayMeals(mealsRes));
+      // SWR：先渲染缓存（旧数据），再后台刷新覆盖 —— 每次进入无需等待网络
+      const key = `caloplan_today_${today}`;
+      const res = await swrLoad<TodayCache>(key, async () => {
+        const [bodyRes, goalRes, mealsRes] = await Promise.all([
+          cpUser.body.getByDate(today),
+          cpUser.nutrition.getByDate(today),
+          cpCore.meal.listMine({ date: today }),
+        ]);
+        return { body: bodyRes, goal: goalRes, meals: pickTodayMeals(mealsRes) };
+      });
+      if (res.cached) {
+        // 命中缓存：立即渲染旧数据
+        setBody(res.cached.body);
+        setGoal(res.cached.goal);
+        setMeals(res.cached.meals);
+        setLoading(false);
+      }
+      if (res.fresh) {
+        // 后台刷新结果：覆盖渲染
+        setBody(res.fresh.body);
+        setGoal(res.fresh.goal);
+        setMeals(res.fresh.meals);
+      }
+      // 运动记录：经 cache 读今日数据（跨天自动为空）
+      try {
+        const store = await getExerciseCache().get<ExerciseStore>(EXERCISE_CACHE_KEY);
+        setExercises(store && store.date === today ? store.records : []);
+      } catch {
+        setExercises([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -164,6 +226,30 @@ export function useToday(): TodayViewModel {
     [isDemo, auth.status, body, load],
   );
 
+  /** 记录一条今日运动：更新内存 + 写回 cache（localStorage） */
+  const addExercise = useCallback(
+    async (input: { name: string; durationMin: number; kcal: number }) => {
+      const name = input.name.trim();
+      if (!name || !(input.durationMin > 0) || !(input.kcal > 0)) return;
+      const record: ExerciseRecord = {
+        id: `ex_${Date.now()}`,
+        name,
+        durationMin: input.durationMin,
+        kcal: input.kcal,
+        createdAt: Date.now(),
+      };
+      const next = [...exercises, record];
+      setExercises(next);
+      exerciseStore = { date: todayString(), records: next };
+      try {
+        await getExerciseCache().refresh(EXERCISE_CACHE_KEY);
+      } catch {
+        // 本地持久化失败不影响本次展示
+      }
+    },
+    [exercises],
+  );
+
   const view = useMemo<TodayViewModel>(() => {
     const consumed = meals.length > 0 ? sumNutrition(meals) : emptyNutrition();
     const calorieConsumed = totalKcal(consumed);
@@ -186,11 +272,13 @@ export function useToday(): TodayViewModel {
       calorieTarget,
       calorieRatio: calorieTarget > 0 ? Math.min(calorieConsumed / calorieTarget, 1) : 0,
       macros: buildMacroPoints(consumed, macroTargets),
-      quickActions: mockQuickActions,
+      exercises,
+      exerciseKcal: exercises.reduce((sum, e) => sum + e.kcal, 0),
       refresh: () => void load(),
       updateWeight,
+      addExercise,
     };
-  }, [loading, isDemo, error, body, goal, meals, load, updateWeight]);
+  }, [loading, isDemo, error, body, goal, meals, exercises, load, updateWeight, addExercise]);
 
   return view;
 }

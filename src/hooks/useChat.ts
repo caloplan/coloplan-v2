@@ -171,8 +171,48 @@ export function useChat(): ChatViewModel {
       setError(null);
       try {
         const provider = currentProvider();
+
+        // 乐观显示：真实模式发送后立即把用户消息渲染出来
+        // （provider 内部会在流开始时落盘同一条用户消息，刷新后自然替换，无需去重）
+        if (!isDemo) {
+          const optimistic: ChatSession["messages"][number] = {
+            id: `local_${Date.now()}`,
+            role: "user",
+            content: trimmed,
+            status: "completed",
+            createdAt: Date.now(),
+          };
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === activeSessionId
+                ? {
+                    ...s,
+                    messages: [...s.messages, optimistic],
+                    updatedAt: Date.now(),
+                  }
+                : s,
+            ),
+          );
+        }
+
+        // 流式渲染节流：传输保持逐增量，UI 每 RENDER_INTERVAL_MS 合并刷新一次，
+        // 避免 token 级 setState 造成"刷屏式"渲染
+        const RENDER_INTERVAL_MS = 80;
+        let renderTimer: ReturnType<typeof setTimeout> | null = null;
+        const scheduleRender = () => {
+          if (renderTimer != null) return;
+          renderTimer = setTimeout(() => {
+            renderTimer = null;
+            refreshSessions(provider);
+          }, RENDER_INTERVAL_MS);
+        };
+
         for await (const _ev of provider.sendMessage(activeSessionId, trimmed)) {
-          refreshSessions(provider);
+          scheduleRender();
+        }
+        if (renderTimer != null) {
+          clearTimeout(renderTimer);
+          renderTimer = null;
         }
         refreshSessions(provider);
       } catch (err) {
@@ -182,7 +222,7 @@ export function useChat(): ChatViewModel {
         setSending(false);
       }
     },
-    [activeSessionId, sending, currentProvider, refreshSessions],
+    [activeSessionId, sending, isDemo, currentProvider, refreshSessions],
   );
 
   const confirm = useCallback(async () => {

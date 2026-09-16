@@ -18,6 +18,7 @@ import {
 } from "caloplan-core";
 import { useAuth, useIsDemo } from "./useAuth";
 import { appServices } from "@/services/bootstrap";
+import { swrLoad } from "@/services/cache";
 import { mockMeals, mockFoodLibrary } from "@/demo/demoData";
 import { todayString } from "@/utils/date";
 
@@ -83,25 +84,36 @@ export function useMeals(): MealsViewModel {
     setError(null);
     try {
       const cpCore = appServices.requireCPCore();
-      const [mealList, foodList] = await Promise.all([
-        cpCore.meal.listMine(),
-        cpCore.food.listMine(),
-      ]);
-      setMeals(mealList);
-      if (foodList.length === 0) {
-        // 原型阶段：真实食物库为空时提供示例食物用于交互演示
-        setFoodLibrary(mockFoodLibrary);
-        setFoodLibraryIsFallback(true);
-      } else {
-        setFoodLibrary(foodList);
-        setFoodLibraryIsFallback(false);
+      // SWR：餐食列表与食物库各自缓存，先渲染旧数据再后台刷新
+      const mealsKey = "caloplan_meals";
+      const foodKey = "caloplan_food_library";
+      const mealsRes = await swrLoad<Meal[]>(mealsKey, () => cpCore.meal.listMine());
+      if (mealsRes.cached) {
+        setMeals(mealsRes.cached);
+        setLoading(false);
       }
+      if (mealsRes.fresh) setMeals(mealsRes.fresh);
+
+      const foodRes = await swrLoad<Food[]>(foodKey, () => cpCore.food.listMine());
+      if (foodRes.cached) applyFoodLibrary(foodRes.cached);
+      if (foodRes.fresh) applyFoodLibrary(foodRes.fresh);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
   }, [auth.status, isDemo]);
+
+  /** 应用食物库结果：真实库为空时提供示例食物用于交互演示 */
+  const applyFoodLibrary = useCallback((list: Food[]) => {
+    if (list.length === 0) {
+      setFoodLibrary(mockFoodLibrary);
+      setFoodLibraryIsFallback(true);
+    } else {
+      setFoodLibrary(list);
+      setFoodLibraryIsFallback(false);
+    }
+  }, []);
 
   useEffect(() => {
     void refresh();

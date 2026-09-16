@@ -36,8 +36,8 @@ function MarkdownText({ text }: { text: string }) {
         h3: ({ children }) => <Text style={styles.mdH3}>{children}</Text>,
         strong: ({ children }) => <Text style={styles.mdStrong}>{children}</Text>,
         em: ({ children }) => <Text style={styles.mdEm}>{children}</Text>,
-        ul: ({ children }) => <View style={styles.mdList}>{children}</View>,
-        ol: ({ children }) => <View style={styles.mdList}>{children}</View>,
+        ul: ({ children }) => <View style={styles.mdList}>{wrapTextNodes(children)}</View>,
+        ol: ({ children }) => <View style={styles.mdList}>{wrapTextNodes(children)}</View>,
         li: ({ children }) => (
           <View style={styles.mdLi}>
             <Text style={styles.mdBullet}>•</Text>
@@ -45,13 +45,13 @@ function MarkdownText({ text }: { text: string }) {
           </View>
         ),
         code: ({ children }) => <Text style={styles.mdCode}>{children}</Text>,
-        pre: ({ children }) => <View style={styles.mdPre}>{children}</View>,
+        pre: ({ children }) => <View style={styles.mdPre}>{wrapTextNodes(children)}</View>,
         a: ({ children }) => <Text style={styles.mdLink}>{children}</Text>,
         hr: () => <View style={styles.mdHr} />,
         // GFM 表格：table → 边框容器；thead/tbody → 分组；tr → 行；th/td → 等宽单元格
-        table: ({ children }) => <View style={styles.mdTable}>{children}</View>,
-        thead: ({ children }) => <View style={styles.mdThead}>{children}</View>,
-        tbody: ({ children }) => <View style={styles.mdTbody}>{children}</View>,
+        table: ({ children }) => <View style={styles.mdTable}>{wrapTextNodes(children)}</View>,
+        thead: ({ children }) => <View style={styles.mdThead}>{wrapTextNodes(children)}</View>,
+        tbody: ({ children }) => <View style={styles.mdTbody}>{wrapTextNodes(children)}</View>,
         tr: ({ children }) => <View style={styles.mdTr}>{wrapTextNodes(children)}</View>,
         th: ({ children }) => <Text style={styles.mdTh}>{wrapTextNodes(children)}</Text>,
         td: ({ children }) => <Text style={styles.mdTd}>{wrapTextNodes(children)}</Text>,
@@ -272,13 +272,19 @@ const styles = StyleSheet.create({
     color: colors.chatAssistantText,
   },
   mdList: {
-    gap: 2,
-    marginBottom: spacing.xs,
+    backgroundColor: "rgba(0,0,0,0.055)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
+    borderRadius: radius.md,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.sm + 2,
+    gap: 3,
+    marginBottom: spacing.sm,
   },
   mdLi: {
     flexDirection: "row",
     gap: spacing.sm,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   mdBullet: {
     ...typography.body,
@@ -292,13 +298,15 @@ const styles = StyleSheet.create({
     fontFamily: "monospace",
     fontSize: 13,
     color: colors.chatAssistantText,
-    backgroundColor: "rgba(0,0,0,0.06)",
+    backgroundColor: "rgba(0,0,0,0.09)",
     borderRadius: radius.sm,
     paddingHorizontal: 4,
     paddingVertical: 1,
   },
   mdPre: {
-    backgroundColor: "rgba(0,0,0,0.08)",
+    backgroundColor: "rgba(0,0,0,0.10)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.divider,
     borderRadius: radius.md,
     padding: spacing.sm + 2,
     marginBottom: spacing.sm,
@@ -315,19 +323,19 @@ const styles = StyleSheet.create({
   // —— Markdown 表格 ——
   mdTable: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
+    borderColor: colors.border,
     borderRadius: radius.sm,
     marginBottom: spacing.sm,
     overflow: "hidden",
   },
   mdThead: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: "#E9E9E5",
   },
   mdTbody: {},
   mdTr: {
     flexDirection: "row",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    borderBottomColor: colors.border,
   },
   mdTh: {
     flex: 1,
@@ -348,7 +356,7 @@ const styles = StyleSheet.create({
   mdBlockquote: {
     borderLeftWidth: 3,
     borderLeftColor: colors.accent,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: "rgba(0,0,0,0.045)",
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.sm,
