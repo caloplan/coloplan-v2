@@ -3,6 +3,24 @@
 移动优先的营养助手 UI 原型，基于 **React Native + react-native-web + Vite**。
 展示层与交互层复用既有 CaloPlan 业务模块，RN 不承载领域逻辑。
 
+## 相关项目（CaloPlan 全家桶）
+
+CaloPlan 全栈项目统一托管在 GitHub Organization [caloplan](https://github.com/caloplan)：
+
+| 类型 | 项目 | 与本项目关系 |
+| --- | --- | --- |
+| 前端（本仓库） | [coloplan-v2](https://github.com/caloplan/coloplan-v2) | CaloPlan v2 客户端 |
+| SDK | [caloplan-user](https://github.com/caloplan/caloplan-user) | 登录 / 用户 / 身体数据（Today / Account 页） |
+| SDK | [caloplan-core](https://github.com/caloplan/caloplan-core) | 餐食 / 食物仓储（Meals 页） |
+| SDK | [caloplan-chat](https://github.com/caloplan/caloplan-chat) | AI 对话（AI 页） |
+| SDK | [caloplan-cache](https://github.com/caloplan/caloplan-cache) | Token / 数据缓存（本地持久化） |
+| 服务 | [fastapi-chat-service](https://github.com/caloplan/fastapi-chat-service) | AI 对话后端（SSE） |
+| 服务 | [fastapi-file-service](https://github.com/caloplan/fastapi-file-service) | 图片上传后端 |
+| 服务 | [mservice-fastapi-user](https://github.com/caloplan/mservice-fastapi-user) | 认证 / 用户微服务 |
+| 服务 | [mservice-fastapi-metastorage](https://github.com/caloplan/mservice-fastapi-metastorage) | 食物 / 餐食 / 营养元数据微服务 |
+
+本项目为最上层前端：业务能力经 `caloplan-*` SDK 组装，最终由四个 FastAPI 微服务支撑。
+
 ## 快速开始
 
 ```bash
@@ -126,21 +144,3 @@ src/
   utils/          展示层格式化工具
 docs/screenshots/ 各页面截图
 ```
-
-## 相关项目
-
-本项目是 CaloPlan 全家桶（共 9 个仓库）的前端入口，与其他仓库的关系如下：
-
-**上游依赖（SDK）**
-- [caloplan-user](https://github.com/caloplan/caloplan-user) — 用户认证 / 身体数据 SDK（登录、身体指标、营养目标）
-- [caloplan-core](https://github.com/caloplan/caloplan-core) — 餐食 / 食物仓储与领域模型 SDK
-- [caloplan-chat](https://github.com/caloplan/caloplan-chat) — AI 对话 SDK（流式、图片识别、审批流）
-- [caloplan-cache](https://github.com/caloplan/caloplan-cache) — Token / 数据缓存 SDK（SWR 先旧后新）
-
-**直接调用的后端服务**
-- [fastapi-chat-service](https://github.com/caloplan/fastapi-chat-service) — AI 对话后端（Agent + Tool Call + taskid 审批）
-- [fastapi-file-service](https://github.com/caloplan/fastapi-file-service) — 图片上传后端
-
-**后端支撑（经 SDK 间接调用）**
-- [mservice-fastapi-user](https://github.com/caloplan/mservice-fastapi-user) — 认证 / 用户 / 身体数据微服务
-- [mservice-fastapi-metastorage](https://github.com/caloplan/mservice-fastapi-metastorage) — 食物 / 餐食 / 营养元数据微服务
