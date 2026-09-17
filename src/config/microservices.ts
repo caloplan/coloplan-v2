@@ -25,7 +25,7 @@ export interface MicroserviceConfig {
 
 /** 微服务端点默认值（本地开发） */
 export const microservices: MicroserviceConfig = {
-  user: "http://locolhost:9092",
+  user: "http://localhost:9092",
   meta: "http://localhost:9093",
   chat: "http://localhost:9095",
   file: "http://localhost:9094",
