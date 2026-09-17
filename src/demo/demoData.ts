@@ -111,10 +111,11 @@ export const mockNutritionGoal: UserNutritionGoal = {
   id: "goal-mock",
   user_id: "mock-user",
   date: todayString(),
-  carbon: 250,
-  protein: 120,
-  fat: 60,
-  salt: 6,
+  // 与真实后端领域模型一致：carbon/protein/fat 单位为 kg，salt 为 g
+  carbon: 0.25, // 250 g
+  protein: 0.12, // 120 g
+  fat: 0.06, // 60 g
+  salt: 6, // g
   calorie: 2000,
   created_time: new Date().toISOString(),
   updated_time: null,

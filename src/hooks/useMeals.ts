@@ -38,8 +38,15 @@ export interface MealsViewModel {
   foodLibraryIsFallback: boolean;
   refresh: () => void;
   addFoodToMeal: (mealId: string, food: Food, amount: number) => Promise<void>;
-  removeFoodFromMeal: (mealId: string, foodId: string) => Promise<void>;
-  changeFoodAmount: (mealId: string, foodId: string, amount: number) => Promise<void>;
+  /** 编辑模式：当前正在编辑的 meal id（null 表示未进入编辑） */
+  editingMealId: string | null;
+  startEdit: (mealId: string) => void;
+  /** 编辑态内本地改数量（不触网） */
+  changeFoodAmountDraft: (mealId: string, foodId: string, amount: number) => void;
+  /** 完成编辑：一次 update 同步数量改动 */
+  saveEdit: (mealId: string) => Promise<void>;
+  /** 取消编辑：回滚本地改动（重新拉取） */
+  cancelEdit: (mealId: string) => void;
 }
 
 const GROUP_META: { type: MealType; title: string }[] = [
@@ -66,6 +73,8 @@ export function useMeals(): MealsViewModel {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [foodLibrary, setFoodLibrary] = useState<Food[]>([]);
   const [foodLibraryIsFallback, setFoodLibraryIsFallback] = useState(false);
+  /** 编辑模式：当前正在编辑的 meal id */
+  const [editingMealId, setEditingMealId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (isDemo) {
@@ -130,7 +139,9 @@ export function useMeals(): MealsViewModel {
       if (!meal || amount <= 0) return;
 
       const mealFood = createMealFood(food, amount);
-      const key = `${meal.id}-${food.id}`;
+      // foods 字典 key 统一用 food.id（与 chat 服务端 create_meal 落库一致），
+      // 同一食物重复添加会合并为一条快照，避免 React key 重复与混合 key 污染。
+      const key = food.id;
       changeMealFoods(meal, { ...meal.foods, [key]: mealFood });
 
       if (isDemo) {
@@ -147,39 +158,35 @@ export function useMeals(): MealsViewModel {
     [meals, isDemo, commitMeal],
   );
 
-  const removeFoodFromMeal = useCallback(
-    async (mealId: string, foodId: string) => {
-      const meal = meals.find((m) => m.id === mealId);
-      if (!meal) return;
-      const target = Object.entries(meal.foods).find(([, mf]) => mf.food.id === foodId);
-      if (!target) return;
-      deleteMealFoodById(meal, target[0]);
+  /** 进入某餐的编辑模式 */
+  const startEdit = useCallback((mealId: string) => {
+    setEditingMealId(mealId);
+  }, []);
 
-      if (isDemo) {
-        commitMeal({ ...meal, foods: { ...meal.foods }, nutrition: { ...meal.nutrition } });
-        return;
-      }
-      try {
-        const saved = await appServices.requireCPCore().meal.update(meal);
-        commitMeal(saved);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
+  /** 编辑态内本地改数量（不触网） */
+  const changeFoodAmountDraft = useCallback(
+    (mealId: string, foodId: string, amount: number) => {
+      if (amount <= 0) return;
+      setMeals((prev) =>
+        prev.map((m) => {
+          if (m.id !== mealId) return m;
+          const target = Object.entries(m.foods).find(([, mf]) => mf.food.id === foodId);
+          if (!target) return m;
+          const newMeal = { ...m, foods: { ...m.foods } };
+          changeMealFoodAmountById(newMeal, target[0], amount);
+          return newMeal;
+        }),
+      );
     },
-    [meals, isDemo, commitMeal],
+    [],
   );
 
-  const changeFoodAmount = useCallback(
-    async (mealId: string, foodId: string, amount: number) => {
-      if (amount <= 0) return;
+  /** 完成编辑：一次 update 同步数量改动 */
+  const saveEdit = useCallback(
+    async (mealId: string) => {
       const meal = meals.find((m) => m.id === mealId);
-      if (!meal) return;
-      const target = Object.entries(meal.foods).find(([, mf]) => mf.food.id === foodId);
-      if (!target) return;
-      changeMealFoodAmountById(meal, target[0], amount);
-
-      if (isDemo) {
-        commitMeal({ ...meal, foods: { ...meal.foods }, nutrition: { ...meal.nutrition } });
+      if (!meal) {
+        setEditingMealId(null);
         return;
       }
       try {
@@ -187,9 +194,20 @@ export function useMeals(): MealsViewModel {
         commitMeal(saved);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
+        return; // 保留编辑态，让用户重试
       }
+      setEditingMealId(null);
     },
-    [meals, isDemo, commitMeal],
+    [meals, commitMeal],
+  );
+
+  /** 取消编辑：回滚本地改动（重新拉取最新数据） */
+  const cancelEdit = useCallback(
+    (_mealId: string) => {
+      setEditingMealId(null);
+      void refresh();
+    },
+    [refresh],
   );
 
   const groups = useMemo(() => groupMeals(meals), [meals]);
@@ -203,7 +221,10 @@ export function useMeals(): MealsViewModel {
     foodLibraryIsFallback,
     refresh,
     addFoodToMeal,
-    removeFoodFromMeal,
-    changeFoodAmount,
+    editingMealId,
+    startEdit,
+    changeFoodAmountDraft,
+    saveEdit,
+    cancelEdit,
   };
 }

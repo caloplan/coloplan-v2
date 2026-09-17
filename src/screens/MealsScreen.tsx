@@ -87,10 +87,13 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
                     key={meal.id}
                     meal={meal}
                     title={group.title}
+                    editing={view.editingMealId === meal.id}
                     onAddFood={setTargetMeal}
-                    onRemoveFood={(m, foodId) => void view.removeFoodFromMeal(m.id, foodId)}
-                    onChangeAmount={(m, foodId, amount) =>
-                      void view.changeFoodAmount(m.id, foodId, amount)
+                    onStartEdit={() => view.startEdit(meal.id)}
+                    onSaveEdit={() => void view.saveEdit(meal.id)}
+                    onCancelEdit={() => view.cancelEdit(meal.id)}
+                    onChangeAmountDraft={(foodId, amount) =>
+                      view.changeFoodAmountDraft(meal.id, foodId, amount)
                     }
                   />
                 ))}

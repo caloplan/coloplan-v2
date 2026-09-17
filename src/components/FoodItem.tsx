@@ -13,16 +13,19 @@ interface FoodItemProps {
   actions?: ReactNode;
   /** 整行可点（如添加食物列表） */
   onPress?: () => void;
+  /** 长按进入编辑模式（Meals 页用） */
+  onLongPress?: () => void;
   /** 是否显示份数徽标（添加列表用） */
   showAmountBadge?: boolean;
 }
 
-export function FoodItem({ mealFood, actions, onPress, showAmountBadge }: FoodItemProps) {
+export function FoodItem({ mealFood, actions, onPress, onLongPress, showAmountBadge }: FoodItemProps) {
   return (
     <TouchableOpacity
       style={styles.row}
       onPress={onPress}
-      disabled={!onPress}
+      onLongPress={onLongPress}
+      disabled={!onPress && !onLongPress}
       activeOpacity={0.7}
     >
       <View style={styles.avatar}>

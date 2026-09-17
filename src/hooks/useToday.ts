@@ -254,10 +254,12 @@ export function useToday(): TodayViewModel {
     const consumed = meals.length > 0 ? sumNutrition(meals) : emptyNutrition();
     const calorieConsumed = totalKcal(consumed);
     const calorieTarget = goal?.calorie ?? 2000;
+    // UserNutritionGoal 领域模型：carbon/protein/fat 单位为 kg（与 Nutrition 一致），
+    // salt 单位为 g。展示层统一为 g，故宏量营养素需 ×1000 转换。
     const macroTargets = {
-      carbon: goal?.carbon ?? 250,
-      protein: goal?.protein ?? 120,
-      fat: goal?.fat ?? 60,
+      carbon: (goal?.carbon ?? 0.25) * 1000,
+      protein: (goal?.protein ?? 0.12) * 1000,
+      fat: (goal?.fat ?? 0.06) * 1000,
       salt: goal?.salt ?? 6,
     };
     return {
