@@ -109,7 +109,7 @@ AI 页提问 → caloplan-chat → fastapi-chat-service（Agent + Tool Call）
 
 - `.env.example` 为入库模板，`cp .env.example .env` 后按需修改；`.env` 已被 `.gitignore` 忽略。
 - 服务地址还可在 Account 登录表单中按会话临时修改（不写回配置文件）。
-- 生产示例：`VITE_USER_URL=http://<server-ip>:51092`、`VITE_META_URL=...:51093`、`VITE_FILE_URL=...:51094`、`VITE_CHAT_URL=...:51095`。
+- 生产示例：`VITE_USER_URL=http://<server-ip>:51092`、`VITE_META_URL=http://<server-ip>:51093`、`VITE_FILE_URL=http://<server-ip>:51094`、`VITE_CHAT_URL=http://<server-ip>:51095`（`<server-ip>` 替换为实际部署地址，不写入仓库）。
 
 ## 目录结构
 
@@ -126,3 +126,21 @@ src/
   utils/          展示层格式化工具
 docs/screenshots/ 各页面截图
 ```
+
+## 相关项目
+
+本项目是 CaloPlan 全家桶（共 9 个仓库）的前端入口，与其他仓库的关系如下：
+
+**上游依赖（SDK）**
+- [caloplan-user](https://github.com/caloplan/caloplan-user) — 用户认证 / 身体数据 SDK（登录、身体指标、营养目标）
+- [caloplan-core](https://github.com/caloplan/caloplan-core) — 餐食 / 食物仓储与领域模型 SDK
+- [caloplan-chat](https://github.com/caloplan/caloplan-chat) — AI 对话 SDK（流式、图片识别、审批流）
+- [caloplan-cache](https://github.com/caloplan/caloplan-cache) — Token / 数据缓存 SDK（SWR 先旧后新）
+
+**直接调用的后端服务**
+- [fastapi-chat-service](https://github.com/caloplan/fastapi-chat-service) — AI 对话后端（Agent + Tool Call + taskid 审批）
+- [fastapi-file-service](https://github.com/caloplan/fastapi-file-service) — 图片上传后端
+
+**后端支撑（经 SDK 间接调用）**
+- [mservice-fastapi-user](https://github.com/caloplan/mservice-fastapi-user) — 认证 / 用户 / 身体数据微服务
+- [mservice-fastapi-metastorage](https://github.com/caloplan/mservice-fastapi-metastorage) — 食物 / 餐食 / 营养元数据微服务
