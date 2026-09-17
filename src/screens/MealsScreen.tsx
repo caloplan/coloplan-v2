@@ -12,7 +12,8 @@ import { Screen } from "@/components/Screen";
 import { LoadingState, ErrorState, EmptyState } from "@/components/State";
 import { MealCard } from "@/components/MealCard";
 import { FoodItem } from "@/components/FoodItem";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { useMeals } from "@/hooks/useMeals";
 import type { MainTab } from "@/components/HeaderNavigation";
 
@@ -22,6 +23,7 @@ interface MealsScreenProps {
 
 export function MealsScreen({ onNavigate }: MealsScreenProps) {
   const view = useMeals();
+  const { colors } = useTheme();
   const [targetMeal, setTargetMeal] = useState<Meal | null>(null);
 
   const addFood = async (food: Food) => {
@@ -51,9 +53,9 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
   return (
     <Screen>
       <View style={styles.head}>
-        <Text style={styles.title}>Meals</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Meals</Text>
         {view.isDemo ? (
-          <View style={styles.demoBadge}>
+          <View style={[styles.demoBadge, { backgroundColor: colors.warning }]}>
             <Text style={styles.demoBadgeText}>Demo 数据</Text>
           </View>
         ) : null}
@@ -63,11 +65,11 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
         <View style={styles.emptyWrap}>
           <EmptyState title="还没有餐食" hint="告诉 AI 今天吃了什么，自动帮你记下来" />
           <TouchableOpacity
-            style={styles.aiBtn}
+            style={[styles.aiBtn, { backgroundColor: colors.accent }]}
             onPress={() => onNavigate("ai")}
             activeOpacity={0.8}
           >
-            <Text style={styles.aiBtnText}>去问 AI</Text>
+            <Text style={[styles.aiBtnText, { color: colors.textOnAccent }]}>去问 AI</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -75,9 +77,9 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
           (group) =>
             group.meals.length > 0 && (
               <View key={group.type} style={styles.group}>
-                <Text style={styles.groupTitle}>
+                <Text style={[styles.groupTitle, { color: colors.text }]}>
                   {group.title}
-                  <Text style={styles.groupCount}>
+                  <Text style={[styles.groupCount, { color: colors.textTertiary }]}>
                     {"  "}
                     {group.meals.reduce((sum, m) => sum + Object.keys(m.foods).length, 0)} 项食物
                   </Text>
@@ -110,19 +112,19 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
         onRequestClose={() => setTargetMeal(null)}
       >
         <View style={styles.modalMask}>
-          <View style={styles.modal}>
+          <View style={[styles.modal, { backgroundColor: colors.bg }]}>
             <View style={styles.modalHead}>
               <View>
-                <Text style={styles.modalTitle}>添加食物</Text>
-                <Text style={styles.modalSub}>到「{targetMeal ? mealTypeTitle(targetMeal.type) : ""}」</Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>添加食物</Text>
+                <Text style={[styles.modalSub, { color: colors.textSecondary }]}>到「{targetMeal ? mealTypeTitle(targetMeal.type) : ""}」</Text>
               </View>
               <TouchableOpacity onPress={() => setTargetMeal(null)} activeOpacity={0.7}>
-                <Text style={styles.close}>关闭</Text>
+                <Text style={[styles.close, { color: colors.accent }]}>关闭</Text>
               </TouchableOpacity>
             </View>
 
             {view.foodLibraryIsFallback ? (
-              <Text style={styles.fallbackNote}>示例食物（当前食物库为空，登录后可管理自有食物）</Text>
+              <Text style={[styles.fallbackNote, { color: colors.warning }]}>示例食物（当前食物库为空，登录后可管理自有食物）</Text>
             ) : null}
 
             <FlatList
@@ -136,7 +138,7 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
                   onPress={() => void addFood(item)}
                 />
               )}
-              ItemSeparatorComponent={() => <View style={styles.sep} />}
+              ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: colors.divider }]} />}
               ListEmptyComponent={<EmptyState title="食物库为空" />}
             />
           </View>
@@ -159,10 +161,8 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.title,
-    color: colors.text,
   },
   demoBadge: {
-    backgroundColor: colors.warning,
     borderRadius: radius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
@@ -177,24 +177,20 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
   },
   aiBtn: {
-    backgroundColor: colors.accent,
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm + 2,
   },
   aiBtnText: {
     ...typography.label,
-    color: "#FFFFFF",
   },
   group: { gap: spacing.sm, marginBottom: spacing.xl },
   groupTitle: {
     ...typography.section,
-    color: colors.text,
     marginBottom: spacing.sm,
   },
   groupCount: {
     ...typography.caption,
-    color: colors.textTertiary,
   },
   modalMask: {
     flex: 1,
@@ -202,7 +198,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modal: {
-    backgroundColor: colors.bg,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     maxHeight: "75%",
@@ -218,26 +213,21 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.section,
-    color: colors.text,
   },
   modalSub: {
     ...typography.caption,
-    color: colors.textSecondary,
     marginTop: 2,
   },
   close: {
     ...typography.label,
-    color: colors.accent,
   },
   fallbackNote: {
     ...typography.caption,
-    color: colors.warning,
     marginBottom: spacing.sm,
   },
   foodList: { flexGrow: 0 },
   foodListContent: { paddingBottom: spacing.lg },
   sep: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.divider,
   },
 });

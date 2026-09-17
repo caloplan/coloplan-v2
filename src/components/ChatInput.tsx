@@ -16,7 +16,8 @@ import {
   View,
 } from "react-native";
 import type { ChatContentBlock } from "caloplan-chat";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface ChatInputProps {
   disabled?: boolean;
@@ -34,6 +35,7 @@ export function ChatInput({
   uploadImage,
   onSend,
 }: ChatInputProps) {
+  const { colors } = useTheme();
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -110,7 +112,7 @@ export function ChatInput({
       {images.length > 0 || uploading ? (
         <View style={styles.thumbRow}>
           {images.map((url) => (
-            <View key={url} style={styles.thumb}>
+            <View key={url} style={[styles.thumb, { backgroundColor: colors.surfaceMuted }]}>
               <Image source={{ uri: url }} style={styles.thumbImage} />
               <TouchableOpacity
                 style={styles.thumbRemove}
@@ -122,27 +124,27 @@ export function ChatInput({
             </View>
           ))}
           {uploading ? (
-            <View style={[styles.thumb, styles.thumbUploading]}>
+            <View style={[styles.thumb, styles.thumbUploading, { backgroundColor: colors.surfaceMuted }]}>
               <ActivityIndicator size="small" color={colors.textTertiary} />
             </View>
           ) : null}
         </View>
       ) : null}
-      {uploadError ? <Text style={styles.uploadError}>{uploadError}</Text> : null}
+      {uploadError ? <Text style={[styles.uploadError, { color: colors.danger }]}>{uploadError}</Text> : null}
 
       <View style={styles.inputRow}>
         {hasImageSupport ? (
           <TouchableOpacity
-            style={[styles.imageBtn, uploading && styles.imageBtnDisabled]}
+            style={[styles.imageBtn, uploading && styles.imageBtnDisabled, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={pickImage}
             disabled={!hasImageSupport || uploading}
             activeOpacity={0.7}
           >
-            <Text style={styles.imageBtnText}>＋</Text>
+            <Text style={[styles.imageBtnText, { color: colors.textSecondary }]}>＋</Text>
           </TouchableOpacity>
         ) : null}
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.surface, color: colors.text }]}
           value={text}
           onChangeText={setText}
           placeholder={placeholder}
@@ -155,12 +157,12 @@ export function ChatInput({
           blurOnSubmit={false}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
+          style={[styles.sendBtn, !canSend && { backgroundColor: colors.surfaceMuted }, canSend && { backgroundColor: colors.accent }]}
           onPress={submit}
           disabled={!canSend}
           activeOpacity={0.7}
         >
-          <Text style={[styles.sendText, !canSend && styles.sendTextDisabled]}>
+          <Text style={[styles.sendText, !canSend && { color: colors.textTertiary }, canSend && { color: colors.textOnAccent }]}>
             {sending ? "…" : "发送"}
           </Text>
         </TouchableOpacity>
@@ -183,7 +185,6 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: radius.md,
     overflow: "hidden",
-    backgroundColor: colors.surfaceMuted,
   },
   thumbUploading: {
     alignItems: "center",
@@ -211,7 +212,6 @@ const styles = StyleSheet.create({
   },
   uploadError: {
     ...typography.caption,
-    color: colors.danger,
   },
   inputRow: {
     flexDirection: "row",
@@ -222,9 +222,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: radius.lg,
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -234,37 +232,26 @@ const styles = StyleSheet.create({
   imageBtnText: {
     ...typography.label,
     fontSize: 20,
-    color: colors.textSecondary,
     lineHeight: 22,
   },
   input: {
     flex: 1,
     minHeight: 42,
     maxHeight: 120,
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     paddingTop: 10,
     paddingBottom: 10,
     ...typography.body,
-    color: colors.text,
   },
   sendBtn: {
     height: 42,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.full,
-    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  sendBtnDisabled: {
-    backgroundColor: colors.surfaceMuted,
-  },
   sendText: {
     ...typography.label,
-    color: colors.textOnAccent,
-  },
-  sendTextDisabled: {
-    color: colors.textTertiary,
   },
 });

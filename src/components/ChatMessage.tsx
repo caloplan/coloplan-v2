@@ -12,7 +12,8 @@ import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage as ChatMessageModel, ChatContentBlock } from "caloplan-chat";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface ChatMessageProps {
   message: ChatMessageModel;
@@ -25,43 +26,41 @@ function blockUrl(block: ChatContentBlock): string | null {
 }
 
 /** assistant 文本 → Markdown 渲染（映射为 RN 组件，样式对齐气泡配色） */
-function MarkdownText({ text }: { text: string }) {
+function MarkdownText({ text, colors }: { text: string; colors: ReturnType<typeof useTheme>["colors"] }) {
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        p: ({ children }) => <Text style={styles.mdP}>{children}</Text>,
-        h1: ({ children }) => <Text style={styles.mdH1}>{children}</Text>,
-        h2: ({ children }) => <Text style={styles.mdH2}>{children}</Text>,
-        h3: ({ children }) => <Text style={styles.mdH3}>{children}</Text>,
-        strong: ({ children }) => <Text style={styles.mdStrong}>{children}</Text>,
-        em: ({ children }) => <Text style={styles.mdEm}>{children}</Text>,
-        ul: ({ children }) => <View style={styles.mdList}>{wrapTextNodes(children)}</View>,
-        ol: ({ children }) => <View style={styles.mdList}>{wrapTextNodes(children)}</View>,
+        p: ({ children }) => <Text style={[styles.mdP, { color: colors.chatAssistantText }]}>{children}</Text>,
+        h1: ({ children }) => <Text style={[styles.mdH1, { color: colors.chatAssistantText }]}>{children}</Text>,
+        h2: ({ children }) => <Text style={[styles.mdH2, { color: colors.chatAssistantText }]}>{children}</Text>,
+        h3: ({ children }) => <Text style={[styles.mdH3, { color: colors.chatAssistantText }]}>{children}</Text>,
+        strong: ({ children }) => <Text style={[styles.mdStrong, { color: colors.chatAssistantText }]}>{children}</Text>,
+        em: ({ children }) => <Text style={[styles.mdEm, { color: colors.chatAssistantText }]}>{children}</Text>,
+        ul: ({ children }) => <View style={[styles.mdList, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>{wrapTextNodes(children, colors)}</View>,
+        ol: ({ children }) => <View style={[styles.mdList, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>{wrapTextNodes(children, colors)}</View>,
         li: ({ children }) => (
           <View style={styles.mdLi}>
-            <Text style={styles.mdBullet}>•</Text>
-            <View style={styles.mdLiContent}>{wrapTextNodes(children)}</View>
+            <Text style={[styles.mdBullet, { color: colors.accent }]}>•</Text>
+            <View style={styles.mdLiContent}>{wrapTextNodes(children, colors)}</View>
           </View>
         ),
-        code: ({ children }) => <Text style={styles.mdCode}>{children}</Text>,
-        pre: ({ children }) => <View style={styles.mdPre}>{wrapTextNodes(children)}</View>,
-        a: ({ children }) => <Text style={styles.mdLink}>{children}</Text>,
-        hr: () => <View style={styles.mdHr} />,
-        // GFM 表格：table → 边框容器；thead/tbody → 分组；tr → 行；th/td → 等宽单元格
-        table: ({ children }) => <View style={styles.mdTable}>{wrapTextNodes(children)}</View>,
-        thead: ({ children }) => <View style={styles.mdThead}>{wrapTextNodes(children)}</View>,
-        tbody: ({ children }) => <View style={styles.mdTbody}>{wrapTextNodes(children)}</View>,
-        tr: ({ children }) => <View style={styles.mdTr}>{wrapTextNodes(children)}</View>,
-        th: ({ children }) => <Text style={styles.mdTh}>{wrapTextNodes(children)}</Text>,
-        td: ({ children }) => <Text style={styles.mdTd}>{wrapTextNodes(children)}</Text>,
-        // 其他 GFM 元素
+        code: ({ children }) => <Text style={[styles.mdCode, { color: colors.chatAssistantText, backgroundColor: colors.surfaceMuted }]}>{children}</Text>,
+        pre: ({ children }) => <View style={[styles.mdPre, { backgroundColor: colors.surfaceMuted, borderColor: colors.border }]}>{wrapTextNodes(children, colors)}</View>,
+        a: ({ children }) => <Text style={[styles.mdLink, { color: colors.accent }]}>{children}</Text>,
+        hr: () => <View style={[styles.mdHr, { backgroundColor: colors.divider }]} />,
+        table: ({ children }) => <View style={[styles.mdTable, { borderColor: colors.border }]}>{wrapTextNodes(children, colors)}</View>,
+        thead: ({ children }) => <View style={[styles.mdThead, { backgroundColor: colors.surfaceMuted }]}>{wrapTextNodes(children, colors)}</View>,
+        tbody: ({ children }) => <View>{wrapTextNodes(children, colors)}</View>,
+        tr: ({ children }) => <View style={[styles.mdTr, { borderBottomColor: colors.border }]}>{wrapTextNodes(children, colors)}</View>,
+        th: ({ children }) => <Text style={[styles.mdTh, { color: colors.chatAssistantText }]}>{wrapTextNodes(children, colors)}</Text>,
+        td: ({ children }) => <Text style={[styles.mdTd, { color: colors.chatAssistantText }]}>{wrapTextNodes(children, colors)}</Text>,
         blockquote: ({ children }) => (
-          <View style={styles.mdBlockquote}>{wrapTextNodes(children)}</View>
+          <View style={[styles.mdBlockquote, { borderLeftColor: colors.accent, backgroundColor: colors.surfaceMuted }]}>{wrapTextNodes(children, colors)}</View>
         ),
-        del: ({ children }) => <Text style={styles.mdDel}>{children}</Text>,
+        del: ({ children }) => <Text style={[styles.mdDel, { color: colors.chatAssistantText }]}>{children}</Text>,
         input: ({ checked }) => (
-          <Text style={styles.mdCheckbox}>{checked ? "☑ " : "☐ "}</Text>
+          <Text style={[styles.mdCheckbox, { color: colors.accent }]}>{checked ? "☑ " : "☐ "}</Text>
         ),
         img: ({ src, alt }) =>
           src ? (
@@ -83,16 +82,17 @@ function MarkdownText({ text }: { text: string }) {
  * children 可能是裸字符串（"设定…"）或字符串与行内元素混排，统一把文本节点
  * 包进 <Text>，其余元素（嵌套 ul/p 等）原样保留。
  */
-function wrapTextNodes(children: ReactNode): ReactNode {
+function wrapTextNodes(children: ReactNode, colors: ReturnType<typeof useTheme>["colors"]): ReactNode {
   return Children.map(children, (child) => {
     if (typeof child === "string" || typeof child === "number") {
-      return <Text style={styles.mdText}>{child}</Text>;
+      return <Text style={[styles.mdText, { color: colors.chatAssistantText }]}>{child}</Text>;
     }
     return child;
   });
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
+  const { colors } = useTheme();
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
   const isFailed = message.status === "failed";
@@ -108,31 +108,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
           .join(" ")
           .trim();
 
-  /** 文本主体：user 纯文本；assistant 走 Markdown（保留流式光标） */
-  const renderText = () => {
-    if (isUser) {
-      return (
-        <Text style={[styles.text, styles.textUser]}>
-          {text}
-          {isStreaming ? <Text style={styles.cursor}>▍</Text> : null}
-        </Text>
-      );
-    }
-    if (text.length > 0) {
-      return (
-        <View>
-          <MarkdownText text={text} />
-          {isStreaming ? <Text style={styles.cursorDark}>▍</Text> : null}
-        </View>
-      );
-    }
-    return (
-      <Text style={styles.text}>
-        {isStreaming ? "思考中▍" : "（空）"}
-      </Text>
-    );
-  };
-
   const timeLabel = new Date(message.createdAt).toLocaleTimeString("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -141,10 +116,42 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const toolNames = message.toolCalls?.map((t) => t.name).join(" · ") ?? "";
   const tokenLabel = message.usage?.totalTokens ? `${message.usage.totalTokens} tokens` : "";
 
+  /** 文本主体：user 纯文本；assistant 走 Markdown（保留流式光标） */
+  const renderText = () => {
+    if (isUser) {
+      return (
+        <Text style={[styles.text, styles.textUser, { color: colors.chatUserText }]}>
+          {text}
+          {isStreaming ? <Text style={styles.cursor}>▍</Text> : null}
+        </Text>
+      );
+    }
+    if (text.length > 0) {
+      return (
+        <View>
+          <MarkdownText text={text} colors={colors} />
+          {isStreaming ? <Text style={[styles.cursorDark, { color: colors.accent }]}>▍</Text> : null}
+        </View>
+      );
+    }
+    return (
+      <Text style={[styles.text, { color: colors.chatAssistantText }]}>
+        {isStreaming ? "思考中▍" : "（空）"}
+      </Text>
+    );
+  };
+
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
       <View style={styles.bubbleColumn}>
-        <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? [styles.bubbleUser, { backgroundColor: colors.chatUserBubble }]
+              : [styles.bubbleAssistant, { backgroundColor: colors.chatAssistantBubble }],
+          ]}
+        >
           {blocks != null ? (
             <View style={styles.blocks}>
               {blocks.map((block, i) =>
@@ -167,17 +174,21 @@ export function ChatMessage({ message }: ChatMessageProps) {
         </View>
         <View style={[styles.metaRow, isUser ? styles.metaRowUser : styles.metaRowAssistant]}>
           {toolNames ? (
-            <Text style={styles.toolTag} numberOfLines={1}>
+            <Text style={[styles.toolTag, { color: colors.accent }]} numberOfLines={1}>
               🔧 {toolNames}
             </Text>
           ) : null}
           <View style={styles.metaRight}>
-            {tokenLabel ? <Text style={styles.tokenTag}>{tokenLabel}</Text> : null}
-            <Text style={styles.time}>{timeLabel}</Text>
+            {tokenLabel ? (
+              <Text style={[styles.tokenTag, { backgroundColor: colors.surfaceMuted, color: colors.textTertiary }]}>
+                {tokenLabel}
+              </Text>
+            ) : null}
+            <Text style={[styles.time, { color: colors.textTertiary }]}>{timeLabel}</Text>
           </View>
         </View>
       </View>
-      {isFailed ? <Text style={styles.failed}>发送失败</Text> : null}
+      {isFailed ? <Text style={[styles.failed, { color: colors.danger }]}>发送失败</Text> : null}
 
       <Modal visible={previewUrl != null} transparent animationType="fade">
         <Pressable style={styles.previewBackdrop} onPress={() => setPreviewUrl(null)}>
@@ -209,17 +220,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
   },
   bubbleUser: {
-    backgroundColor: colors.chatUserBubble,
     borderBottomRightRadius: radius.sm,
   },
   bubbleAssistant: {
-    backgroundColor: colors.chatAssistantBubble,
     borderBottomLeftRadius: radius.sm,
   },
   time: {
     ...typography.caption,
     fontSize: 10,
-    color: colors.textTertiary,
   },
   metaRow: {
     flexDirection: "row",
@@ -242,14 +250,11 @@ const styles = StyleSheet.create({
   toolTag: {
     ...typography.caption,
     fontSize: 10,
-    color: colors.accent,
     flexShrink: 1,
   },
   tokenTag: {
     ...typography.caption,
     fontSize: 10,
-    color: colors.textTertiary,
-    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: radius.sm,
@@ -262,7 +267,7 @@ const styles = StyleSheet.create({
     width: 168,
     height: 126,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: lightColors.surfaceMuted,
   },
   inlineImagePressed: {
     opacity: 0.8,
@@ -270,20 +275,18 @@ const styles = StyleSheet.create({
   text: {
     ...typography.body,
     lineHeight: 22,
-    color: colors.chatAssistantText,
   },
   textUser: {
-    color: colors.chatUserText,
+    color: "#fff",
   },
   cursor: {
     color: "rgba(255,255,255,0.9)",
   },
   cursorDark: {
-    color: colors.accent,
+    color: lightColors.accent,
   },
   failed: {
     ...typography.caption,
-    color: colors.danger,
     alignSelf: "flex-end",
     marginTop: 2,
   },
@@ -299,46 +302,40 @@ const styles = StyleSheet.create({
   },
   // —— Markdown 元素样式（assistant 气泡：浅底深字）——
   mdText: {
-    color: colors.chatAssistantText,
+    color: lightColors.chatAssistantText,
   },
   mdP: {
     ...typography.body,
     lineHeight: 22,
-    color: colors.chatAssistantText,
     marginBottom: spacing.xs,
   },
   mdH1: {
     ...typography.section,
-    color: colors.chatAssistantText,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   mdH2: {
     ...typography.section,
     fontSize: 16,
-    color: colors.chatAssistantText,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   mdH3: {
     ...typography.body,
     fontWeight: "600",
-    color: colors.chatAssistantText,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   mdStrong: {
     fontWeight: "700",
-    color: colors.chatAssistantText,
   },
   mdEm: {
     fontStyle: "italic",
-    color: colors.chatAssistantText,
   },
   mdList: {
     backgroundColor: "rgba(0,0,0,0.055)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
+    borderColor: lightColors.divider,
     borderRadius: radius.md,
     paddingVertical: spacing.xs + 2,
     paddingHorizontal: spacing.sm + 2,
@@ -353,7 +350,6 @@ const styles = StyleSheet.create({
   mdBullet: {
     ...typography.body,
     lineHeight: 22,
-    color: colors.accent,
   },
   mdLiContent: {
     flex: 1,
@@ -361,7 +357,6 @@ const styles = StyleSheet.create({
   mdCode: {
     fontFamily: "monospace",
     fontSize: 13,
-    color: colors.chatAssistantText,
     backgroundColor: "rgba(0,0,0,0.09)",
     borderRadius: radius.sm,
     paddingHorizontal: 4,
@@ -370,24 +365,21 @@ const styles = StyleSheet.create({
   mdPre: {
     backgroundColor: "rgba(0,0,0,0.10)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.divider,
+    borderColor: lightColors.divider,
     borderRadius: radius.md,
     padding: spacing.sm + 2,
     marginBottom: spacing.sm,
   },
   mdLink: {
-    color: colors.accent,
     textDecorationLine: "underline",
   },
   mdHr: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.divider,
     marginVertical: spacing.sm,
   },
   // —— Markdown 表格 ——
   mdTable: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
     borderRadius: radius.sm,
     marginBottom: spacing.sm,
     overflow: "hidden",
@@ -399,27 +391,23 @@ const styles = StyleSheet.create({
   mdTr: {
     flexDirection: "row",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
   },
   mdTh: {
     flex: 1,
     ...typography.caption,
     fontWeight: "700",
-    color: colors.chatAssistantText,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs + 1,
   },
   mdTd: {
     flex: 1,
     ...typography.caption,
-    color: colors.chatAssistantText,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs + 1,
   },
   // —— Markdown 引用 / 删除线 / 任务列表 / 图片 ——
   mdBlockquote: {
     borderLeftWidth: 3,
-    borderLeftColor: colors.accent,
     backgroundColor: "rgba(0,0,0,0.045)",
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm + 2,
@@ -428,17 +416,15 @@ const styles = StyleSheet.create({
   },
   mdDel: {
     textDecorationLine: "line-through",
-    color: colors.chatAssistantText,
   },
   mdCheckbox: {
-    color: colors.accent,
     marginRight: 4,
   },
   mdImg: {
     width: 180,
     height: 180,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: lightColors.surfaceMuted,
     marginVertical: spacing.xs,
   },
 });

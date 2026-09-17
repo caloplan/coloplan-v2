@@ -8,7 +8,8 @@ import { useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { ScrollViewInstance } from "react-native";
 import type { ChatContentBlock } from "caloplan-chat";
-import { colors, layout, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, layout, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { LoadingState, EmptyState } from "@/components/State";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
@@ -21,6 +22,7 @@ import { DEMO_IMAGE_URL } from "@/demo/demoData";
 
 export function AIScreen() {
   const chat = useChat();
+  const { colors } = useTheme();
   const scrollRef = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function AIScreen() {
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { backgroundColor: colors.bg }]}>
       {/* 会话条 */}
       <View style={styles.sessionsBar}>
         <ScrollView
@@ -51,37 +53,37 @@ export function AIScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sessionsContent}
         >
-          {chat.sessions.map((s) => (
-            <TouchableOpacity
-              key={s.id}
-              style={[styles.sessionChip, s.id === chat.activeSessionId && styles.sessionChipActive]}
-              onPress={() => chat.selectSession(s.id)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.sessionText,
-                  s.id === chat.activeSessionId && styles.sessionTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {s.title || "新会话"}
-              </Text>
+          {chat.sessions.map((s) => {
+            const active = s.id === chat.activeSessionId;
+            return (
               <TouchableOpacity
-                style={styles.sessionDelete}
-                onPress={() => void chat.deleteSession(s.id)}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                key={s.id}
+                style={[styles.sessionChip, { backgroundColor: active ? colors.accent : colors.surface }]}
+                onPress={() => chat.selectSession(s.id)}
+                activeOpacity={0.7}
               >
-                <Text style={styles.sessionDeleteText}>×</Text>
+                <Text
+                  style={[styles.sessionText, { color: active ? colors.textOnAccent : colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {s.title || "新会话"}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.sessionDelete, { backgroundColor: active ? "rgba(255,255,255,0.25)" : colors.surfaceMuted }]}
+                  onPress={() => void chat.deleteSession(s.id)}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <Text style={[styles.sessionDeleteText, { color: active ? colors.textOnAccent : colors.textSecondary }]}>×</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
+            );
+          })}
           <TouchableOpacity
-            style={styles.newSessionBtn}
+            style={[styles.newSessionBtn, { backgroundColor: colors.accentSoft }]}
             onPress={() => void chat.createSession()}
             activeOpacity={0.7}
           >
-            <Text style={styles.newSessionText}>＋ 新建会话</Text>
+            <Text style={[styles.newSessionText, { color: colors.accent }]}>＋ 新建会话</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -94,8 +96,12 @@ export function AIScreen() {
       ) : !chat.activeSession ? (
         <View style={styles.center}>
           <EmptyState title="开始一段新对话" hint="新建会话，向 CaloPlan 询问营养与饮食建议" />
-          <TouchableOpacity style={styles.startBtn} onPress={() => void chat.createSession()} activeOpacity={0.75}>
-            <Text style={styles.startBtnText}>新建会话</Text>
+          <TouchableOpacity
+            style={[styles.startBtn, { backgroundColor: colors.accent }]}
+            onPress={() => void chat.createSession()}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.startBtnText, { color: colors.textOnAccent }]}>新建会话</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -123,12 +129,12 @@ export function AIScreen() {
 
       {/* 错误横幅 */}
       {chat.error ? (
-        <View style={styles.errorBar}>
-          <Text style={styles.errorText} numberOfLines={2}>
+        <View style={[styles.errorBar, { backgroundColor: colors.danger + "22" }]}>
+          <Text style={[styles.errorText, { color: colors.danger }]} numberOfLines={2}>
             {chat.error}
           </Text>
           <TouchableOpacity onPress={chat.clearError} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.errorClose}>×</Text>
+            <Text style={[styles.errorClose, { color: colors.danger }]}>×</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -136,7 +142,7 @@ export function AIScreen() {
       {/* 输入区 */}
       <View style={styles.inputArea}>
         {chat.isDemo ? (
-          <Text style={styles.demoHint}>Demo 会话：登录后可连接真实 caloplan-chat 服务</Text>
+          <Text style={[styles.demoHint, { color: colors.textTertiary }]}>Demo 会话：登录后可连接真实 caloplan-chat 服务</Text>
         ) : null}
         <ChatInput
           sending={chat.sending}
@@ -156,7 +162,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: layout.maxWidth,
     alignSelf: "center",
-    backgroundColor: colors.bg,
   },
   sessionsBar: {
     paddingTop: spacing.sm,
@@ -171,39 +176,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    backgroundColor: colors.surface,
     borderRadius: radius.full,
     paddingLeft: spacing.md,
     paddingRight: spacing.sm,
     paddingVertical: spacing.sm,
     maxWidth: 180,
   },
-  sessionChipActive: {
-    backgroundColor: colors.accent,
-  },
   sessionText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
     maxWidth: 120,
-  },
-  sessionTextActive: {
-    color: colors.textOnAccent,
   },
   sessionDelete: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
   },
   sessionDeleteText: {
     ...typography.caption,
-    color: colors.textSecondary,
     lineHeight: 16,
   },
   newSessionBtn: {
-    backgroundColor: colors.accentSoft,
     borderRadius: radius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -211,7 +205,6 @@ const styles = StyleSheet.create({
   newSessionText: {
     ...typography.label,
     fontSize: 13,
-    color: colors.accent,
   },
   center: {
     flex: 1,
@@ -221,14 +214,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   startBtn: {
-    backgroundColor: colors.accent,
     borderRadius: radius.full,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
   },
   startBtnText: {
     ...typography.label,
-    color: colors.textOnAccent,
   },
   messages: { flex: 1, minHeight: 0 },
   messagesContent: {
@@ -240,7 +231,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
-    backgroundColor: "#FBEAE7",
     borderRadius: radius.md,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.xs,
@@ -249,12 +239,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.bodySmall,
-    color: colors.danger,
     flex: 1,
   },
   errorClose: {
     ...typography.label,
-    color: colors.danger,
   },
   inputArea: {
     paddingHorizontal: spacing.lg,
@@ -264,7 +252,6 @@ const styles = StyleSheet.create({
   },
   demoHint: {
     ...typography.caption,
-    color: colors.textTertiary,
     textAlign: "center",
   },
 });

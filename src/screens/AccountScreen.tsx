@@ -9,7 +9,8 @@ import { Screen } from "@/components/Screen";
 import { LoadingState } from "@/components/State";
 import { LoginForm } from "@/components/LoginForm";
 import type { LoginFields } from "@/components/LoginForm";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
 import { appServices } from "@/services/bootstrap";
 
@@ -19,6 +20,7 @@ interface AccountScreenProps {
 
 export function AccountScreen({ onBack }: AccountScreenProps) {
   const auth = useAuth();
+  const { colors } = useTheme();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -90,24 +92,24 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
   return (
     <Screen>
       <TouchableOpacity style={styles.back} onPress={onBack} activeOpacity={0.7}>
-        <Text style={styles.backText}>‹ 返回</Text>
+        <Text style={[styles.backText, { color: colors.accent }]}>‹ 返回</Text>
       </TouchableOpacity>
 
       {auth.status === "authenticated" && auth.profile ? (
         <>
-          <View style={styles.profileCard}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{auth.profile.username.slice(0, 1).toUpperCase()}</Text>
+          <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.avatarText, { color: colors.textOnAccent }]}>{auth.profile.username.slice(0, 1).toUpperCase()}</Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.username}>{auth.profile.username}</Text>
-              <Text style={styles.email}>{auth.profile.email}</Text>
+              <Text style={[styles.username, { color: colors.text }]}>{auth.profile.username}</Text>
+              <Text style={[styles.email, { color: colors.textSecondary }]}>{auth.profile.email}</Text>
               {auth.profile.full_name ? (
-                <Text style={styles.email}>{auth.profile.full_name}</Text>
+                <Text style={[styles.email, { color: colors.textSecondary }]}>{auth.profile.full_name}</Text>
               ) : null}
             </View>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>已登录</Text>
+            <View style={[styles.statusPill, { backgroundColor: colors.accentSoft }]}>
+              <Text style={[styles.statusPillText, { color: colors.accent }]}>已登录</Text>
             </View>
           </View>
 
@@ -127,12 +129,12 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
 
           <Section title="账号操作">
             <TouchableOpacity
-              style={[styles.rowBtn, styles.logoutBtn]}
+              style={[styles.rowBtn, styles.logoutBtn, { borderBottomColor: colors.divider }]}
               onPress={() => setConfirmLogout(true)}
               disabled={busy}
               activeOpacity={0.7}
             >
-              <Text style={styles.logoutText}>退出登录</Text>
+              <Text style={[styles.logoutText, { color: colors.text }]}>退出登录</Text>
             </TouchableOpacity>
             {confirmLogout ? (
               <InlineConfirm
@@ -148,7 +150,7 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
               disabled={busy}
               activeOpacity={0.7}
             >
-              <Text style={styles.dangerText}>注销账号</Text>
+              <Text style={[styles.dangerText, { color: colors.danger }]}>注销账号</Text>
             </TouchableOpacity>
             {confirmDelete ? (
               <InlineConfirm
@@ -161,8 +163,8 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
         </>
       ) : (
         <>
-          <Text style={styles.welcome}>连接你的 CaloPlan</Text>
-          <Text style={styles.welcomeSub}>
+          <Text style={[styles.welcome, { color: colors.text }]}>连接你的 CaloPlan</Text>
+          <Text style={[styles.welcomeSub, { color: colors.textSecondary }]}>
             登录后通过 caloplan-user / caloplan-core / caloplan-chat 读写真实数据；
             未登录时页面展示 Demo 数据。
           </Text>
@@ -174,19 +176,21 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionCard}>{children}</View>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <View style={[styles.sectionCard, { backgroundColor: colors.surface }]}>{children}</View>
     </View>
   );
 }
 
 function SettingRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  const { colors } = useTheme();
   return (
-    <View style={[styles.settingRow, !last && styles.settingBorder]}>
-      <Text style={styles.settingLabel}>{label}</Text>
-      <Text style={styles.settingValue}>{value}</Text>
+    <View style={[styles.settingRow, !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+      <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
+      <Text style={[styles.settingValue, { color: colors.textSecondary }]}>{value}</Text>
     </View>
   );
 }
@@ -200,14 +204,15 @@ function InlineConfirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.confirmBox}>
-      <Text style={styles.confirmText}>{text}</Text>
+    <View style={[styles.confirmBox, { backgroundColor: colors.surfaceMuted }]}>
+      <Text style={[styles.confirmText, { color: colors.text }]}>{text}</Text>
       <View style={styles.confirmActions}>
-        <TouchableOpacity style={[styles.confirmBtn, styles.cancelBtn]} onPress={onCancel} activeOpacity={0.7}>
-          <Text style={styles.cancelText}>取消</Text>
+        <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.surface }]} onPress={onCancel} activeOpacity={0.7}>
+          <Text style={[styles.cancelText, { color: colors.textSecondary }]}>取消</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.confirmBtn, styles.okBtn]} onPress={onConfirm} activeOpacity={0.7}>
+        <TouchableOpacity style={[styles.confirmBtn, { backgroundColor: colors.danger }]} onPress={onConfirm} activeOpacity={0.7}>
           <Text style={styles.okText}>确认</Text>
         </TouchableOpacity>
       </View>
@@ -230,13 +235,11 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...typography.label,
-    color: colors.accent,
   },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     marginBottom: spacing.xl,
@@ -245,53 +248,43 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     ...typography.title,
     fontSize: 20,
-    color: colors.textOnAccent,
   },
   profileInfo: { flex: 1, gap: 1 },
   username: {
     ...typography.bodyStrong,
-    color: colors.text,
   },
   email: {
     ...typography.caption,
-    color: colors.textSecondary,
   },
   statusPill: {
-    backgroundColor: colors.accentSoft,
     borderRadius: radius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
   statusPillText: {
     ...typography.caption,
-    color: colors.accent,
   },
   welcome: {
     ...typography.title,
-    color: colors.text,
     marginBottom: spacing.sm,
   },
   welcomeSub: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
     lineHeight: 21,
     marginBottom: spacing.lg,
   },
   section: { marginBottom: spacing.xl },
   sectionTitle: {
     ...typography.section,
-    color: colors.text,
     marginBottom: spacing.sm,
   },
   sectionCard: {
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
   },
@@ -301,36 +294,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.md,
   },
-  settingBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-  },
   settingLabel: {
     ...typography.body,
-    color: colors.text,
   },
   settingValue: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
   },
   rowBtn: {
     paddingVertical: spacing.md,
   },
   logoutBtn: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
   },
   logoutText: {
     ...typography.body,
-    color: colors.text,
   },
   dangerBtn: {},
   dangerText: {
     ...typography.body,
-    color: colors.danger,
   },
   confirmBox: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     padding: spacing.md,
     gap: spacing.sm,
@@ -339,7 +322,6 @@ const styles = StyleSheet.create({
   },
   confirmText: {
     ...typography.bodySmall,
-    color: colors.text,
     lineHeight: 20,
   },
   confirmActions: {
@@ -352,15 +334,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
   },
-  cancelBtn: {
-    backgroundColor: colors.surface,
-  },
-  okBtn: {
-    backgroundColor: colors.danger,
-  },
   cancelText: {
     ...typography.label,
-    color: colors.textSecondary,
   },
   okText: {
     ...typography.label,

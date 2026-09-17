@@ -15,13 +15,15 @@ import { AIScreen } from "@/screens/AIScreen";
 import { AccountScreen } from "@/screens/AccountScreen";
 import { appServices } from "@/services/bootstrap";
 import { useAuth } from "@/hooks/useAuth";
-import { colors, spacing, typography } from "@/theme";
+import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
+import { spacing, typography } from "@/theme";
 
-export default function App() {
+function AppInner() {
   const [booted, setBooted] = useState(false);
   const [tab, setTab] = useState<MainTab>("today");
   const [accountOpen, setAccountOpen] = useState(false);
   const auth = useAuth();
+  const { colors } = useTheme();
 
   useEffect(() => {
     void appServices.boot().finally(() => setBooted(true));
@@ -38,8 +40,8 @@ export default function App() {
   let content: ReactNode;
   if (!booted) {
     content = (
-      <View style={styles.boot}>
-        <Text style={styles.bootText}>CaloPlan 启动中…</Text>
+      <View style={[styles.boot, { backgroundColor: colors.bg }]}>
+        <Text style={[styles.bootText, { color: colors.textSecondary }]}>CaloPlan 启动中…</Text>
       </View>
     );
   } else if (accountOpen) {
@@ -53,10 +55,10 @@ export default function App() {
   }
 
   return (
-    <View style={styles.app}>
-      <View style={styles.header}>
+    <View style={[styles.app, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}>
         <HeaderNavigation
-          activeTab={accountOpen ? tab : tab}
+          activeTab={tab}
           onChangeTab={navigate}
           accountLabel={accountLabel}
           onOpenAccount={() => setAccountOpen(true)}
@@ -67,16 +69,21 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppInner />
+    </ThemeProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   app: {
     flex: 1,
-    backgroundColor: colors.bg,
     width: "100%",
   },
   header: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
-    backgroundColor: colors.bg,
   },
   content: {
     flex: 1,
@@ -89,6 +96,5 @@ const styles = StyleSheet.create({
   },
   bootText: {
     ...typography.body,
-    color: colors.textSecondary,
   },
 });

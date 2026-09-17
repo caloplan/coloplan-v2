@@ -11,4 +11,9 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  define: {
+    // react-native-web 内部引用 global（如 global.performance.now()），
+    // 浏览器环境下 global 未定义，需指向 globalThis
+    global: "globalThis",
+  },
 });

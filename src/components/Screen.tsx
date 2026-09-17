@@ -4,7 +4,8 @@
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import type { ViewStyle } from "react-native";
-import { colors, layout, spacing } from "@/theme";
+import { layout, spacing } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface ScreenProps {
   children: ReactNode;
@@ -12,9 +13,10 @@ interface ScreenProps {
 }
 
 export function Screen({ children, style }: ScreenProps) {
+  const { colors } = useTheme();
   return (
     <ScrollView
-      style={styles.flex}
+      style={[styles.flex, { backgroundColor: colors.bg }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
@@ -25,7 +27,7 @@ export function Screen({ children, style }: ScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
+  flex: { flex: 1 },
   content: { flexGrow: 1 },
   inner: {
     width: "100%",

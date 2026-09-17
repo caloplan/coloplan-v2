@@ -3,7 +3,10 @@
  * 避免渐变 / 玻璃拟态 / 重阴影 / 装饰性视觉。
  */
 
-export const colors = {
+export type ThemeMode = "light" | "dark";
+
+/** 亮色主题（默认） */
+export const lightColors = {
   // 背景与表面
   bg: "#F6F6F4",
   surface: "#FFFFFF",
@@ -43,6 +46,51 @@ export const colors = {
   // 触摸反馈
   pressOverlay: "rgba(0,0,0,0.05)",
 } as const;
+
+/** 暗色主题 */
+export const darkColors = {
+  // 背景与表面
+  bg: "#121212",
+  surface: "#1E1E1E",
+  surfaceMuted: "#2A2A2A",
+  divider: "#333333",
+  border: "#3A3A3A",
+
+  // 文本
+  text: "#E8E8E8",
+  textSecondary: "#A0A0A0",
+  textTertiary: "#6E6E6A",
+  textOnAccent: "#FFFFFF",
+
+  // 主强调色（暗色下稍亮的绿）
+  accent: "#4CAF7D",
+  accentPressed: "#3D9A6A",
+  accentSoft: "#1E3A2E",
+
+  // 语义色
+  success: "#4CAF7D",
+  warning: "#E0A83C",
+  danger: "#E06C5E",
+  info: "#5B8FC4",
+
+  // 宏量营养标签色
+  macroCarbon: "#E0A83C",
+  macroProtein: "#5B8FC4",
+  macroFat: "#E06C5E",
+  macroSalt: "#8A8A85",
+
+  // 聊天
+  chatUserBubble: "#2E7D5B",
+  chatUserText: "#FFFFFF",
+  chatAssistantBubble: "#2A2A2A",
+  chatAssistantText: "#E8E8E8",
+
+  // 触摸反馈
+  pressOverlay: "rgba(255,255,255,0.08)",
+} as const;
+
+/** 兼容旧引用：默认导出亮色 */
+export const colors = lightColors;
 
 export const spacing = {
   xs: 4,

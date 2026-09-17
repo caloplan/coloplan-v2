@@ -1,15 +1,17 @@
 /** 状态组件：加载 / 错误 / 空态（轻量，无装饰）。 */
 import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors, spacing, typography } from "@/theme";
+import { colors as lightColors, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 
 /* ── LoadingState ── */
 
 export function LoadingState({ label = "加载中…" }: { label?: string }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.box}>
       <ActivityIndicator color={colors.accent} />
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );
 }
@@ -25,12 +27,17 @@ export function ErrorState({
   onRetry?: () => void;
   children?: ReactNode;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.box}>
-      <Text style={styles.errorText}>{message}</Text>
+      <Text style={[styles.errorText, { color: colors.danger }]}>{message}</Text>
       {onRetry ? (
-        <TouchableOpacity style={styles.retryBtn} onPress={onRetry} activeOpacity={0.7}>
-          <Text style={styles.retryText}>重试</Text>
+        <TouchableOpacity
+          style={[styles.retryBtn, { backgroundColor: colors.accentSoft }]}
+          onPress={onRetry}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.retryText, { color: colors.accent }]}>重试</Text>
         </TouchableOpacity>
       ) : null}
       {children}
@@ -41,10 +48,11 @@ export function ErrorState({
 /* ── EmptyState ── */
 
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.box}>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      {hint ? <Text style={styles.label}>{hint}</Text> : null}
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text>
+      {hint ? <Text style={[styles.label, { color: colors.textSecondary }]}>{hint}</Text> : null}
     </View>
   );
 }
@@ -59,12 +67,10 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
     textAlign: "center",
   },
   errorText: {
     ...typography.bodySmall,
-    color: colors.danger,
     textAlign: "center",
   },
   retryBtn: {
@@ -72,14 +78,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: 999,
-    backgroundColor: colors.accentSoft,
   },
   retryText: {
     ...typography.label,
-    color: colors.accent,
   },
   emptyTitle: {
     ...typography.bodyStrong,
-    color: colors.text,
   },
 });

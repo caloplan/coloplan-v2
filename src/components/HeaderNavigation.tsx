@@ -1,9 +1,10 @@
 /**
- * 顶部导航：CaloPlan 标题 + Account 按钮（右上），下方为 Today / Meals / AI 页签。
+ * 顶部导航：CaloPlan 标题 + 主题切换 + Account 按钮（右上），下方为 Today / Meals / AI 页签。
  * 不使用底部 Tab / 抽屉等冗余导航。
  */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors, layout, spacing, typography } from "@/theme";
+import { layout, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 
 export type MainTab = "today" | "meals" | "ai";
 
@@ -26,21 +27,38 @@ export function HeaderNavigation({
   accountLabel,
   onOpenAccount,
 }: HeaderNavigationProps) {
+  const { colors, theme, toggleTheme } = useTheme();
+
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { backgroundColor: colors.bg }]}>
       <View style={styles.header}>
-        <Text style={styles.logo}>CaloPlan</Text>
-        <TouchableOpacity
-          style={styles.accountBtn}
-          onPress={onOpenAccount}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-        >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{accountLabel.slice(0, 1).toUpperCase()}</Text>
-          </View>
-          <Text style={styles.accountText}>Account</Text>
-        </TouchableOpacity>
+        <Text style={[styles.logo, { color: colors.text }]}>CaloPlan</Text>
+        <View style={styles.headerRight}>
+          {/* 主题切换按钮 */}
+          <TouchableOpacity
+            style={[styles.iconBtn, { backgroundColor: colors.surfaceMuted }]}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+            accessibilityLabel={theme === "dark" ? "切换到亮色模式" : "切换到暗色模式"}
+          >
+            <Text style={[styles.iconText, { color: colors.textSecondary }]}>
+              {theme === "dark" ? "☀️" : "🌙"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.accountBtn}
+            onPress={onOpenAccount}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+              <Text style={[styles.avatarText, { color: colors.textOnAccent }]}>
+                {accountLabel.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
+            <Text style={[styles.accountText, { color: colors.textSecondary }]}>Account</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.tabs}>
@@ -53,8 +71,10 @@ export function HeaderNavigation({
               onPress={() => onChangeTab(tab.key)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
-              <View style={[styles.indicator, active && styles.indicatorActive]} />
+              <Text style={[styles.tabText, { color: active ? colors.text : colors.textTertiary }, active && styles.tabTextActive]}>
+                {tab.label}
+              </Text>
+              <View style={[styles.indicator, active && { backgroundColor: colors.accent }]} />
             </TouchableOpacity>
           );
         })}
@@ -68,7 +88,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: layout.maxWidth,
     alignSelf: "center",
-    backgroundColor: colors.bg,
     paddingHorizontal: spacing.lg,
   },
   header: {
@@ -77,10 +96,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   logo: {
     ...typography.title,
-    color: colors.text,
     letterSpacing: -0.5,
+  },
+  iconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconText: {
+    fontSize: 15,
   },
   accountBtn: {
     flexDirection: "row",
@@ -93,18 +126,15 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     ...typography.label,
     fontSize: 12,
-    color: colors.textOnAccent,
   },
   accountText: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
   },
   tabs: {
     flexDirection: "row",
@@ -117,19 +147,14 @@ const styles = StyleSheet.create({
   },
   tabText: {
     ...typography.body,
-    color: colors.textTertiary,
   },
   tabTextActive: {
     ...typography.bodyStrong,
-    color: colors.text,
   },
   indicator: {
     width: 20,
     height: 3,
     borderRadius: 2,
     backgroundColor: "transparent",
-  },
-  indicatorActive: {
-    backgroundColor: colors.accent,
   },
 });

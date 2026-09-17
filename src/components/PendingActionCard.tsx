@@ -3,7 +3,8 @@
  */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { PendingAction } from "caloplan-chat";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 
 interface PendingActionCardProps {
   pendingAction: PendingAction;
@@ -18,19 +19,22 @@ export function PendingActionCard({
   onConfirm,
   onCancel,
 }: PendingActionCardProps) {
+  const { colors } = useTheme();
   const tool = pendingAction.tools[0];
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>等待你的确认</Text>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+      <Text style={[styles.title, { color: colors.text }]}>等待你的确认</Text>
       {tool ? (
         <View style={styles.toolRow}>
-          <View style={styles.toolIcon}>
-            <Text style={styles.toolIconText}>{tool.name.slice(0, 1).toUpperCase()}</Text>
+          <View style={[styles.toolIcon, { backgroundColor: colors.accentSoft }]}>
+            <Text style={[styles.toolIconText, { color: colors.accent }]}>
+              {tool.name.slice(0, 1).toUpperCase()}
+            </Text>
           </View>
           <View style={styles.toolInfo}>
-            <Text style={styles.toolName}>{tool.name}</Text>
-            <Text style={styles.toolDesc} numberOfLines={2}>
+            <Text style={[styles.toolName, { color: colors.text }]}>{tool.name}</Text>
+            <Text style={[styles.toolDesc, { color: colors.textSecondary }]} numberOfLines={2}>
               {tool.description ?? "AI 将执行此操作"}
             </Text>
           </View>
@@ -38,20 +42,22 @@ export function PendingActionCard({
       ) : null}
       <View style={styles.actions}>
         <TouchableOpacity
-          style={[styles.btn, styles.cancelBtn]}
+          style={[styles.btn, styles.cancelBtn, { backgroundColor: colors.surfaceMuted }]}
           onPress={onCancel}
           disabled={busy}
           activeOpacity={0.7}
         >
-          <Text style={styles.cancelText}>取消</Text>
+          <Text style={[styles.cancelText, { color: colors.textSecondary }]}>取消</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.btn, styles.confirmBtn]}
+          style={[styles.btn, styles.confirmBtn, { backgroundColor: colors.accent }]}
           onPress={onConfirm}
           disabled={busy}
           activeOpacity={0.7}
         >
-          <Text style={styles.confirmText}>{busy ? "处理中…" : "确认执行"}</Text>
+          <Text style={[styles.confirmText, { color: colors.textOnAccent }]}>
+            {busy ? "处理中…" : "确认执行"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -60,9 +66,7 @@ export function PendingActionCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.divider,
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.md,
@@ -70,7 +74,6 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.bodyStrong,
-    color: colors.text,
   },
   toolRow: {
     flexDirection: "row",
@@ -81,22 +84,18 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   toolIconText: {
     ...typography.label,
-    color: colors.accent,
   },
   toolInfo: { flex: 1, gap: 2 },
   toolName: {
     ...typography.body,
-    color: colors.text,
   },
   toolDesc: {
     ...typography.caption,
-    color: colors.textSecondary,
   },
   actions: {
     flexDirection: "row",
@@ -109,18 +108,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelBtn: {
-    backgroundColor: colors.surfaceMuted,
-  },
-  confirmBtn: {
-    backgroundColor: colors.accent,
-  },
+  cancelBtn: {},
+  confirmBtn: {},
   cancelText: {
     ...typography.label,
-    color: colors.textSecondary,
   },
   confirmText: {
     ...typography.label,
-    color: colors.textOnAccent,
   },
 });

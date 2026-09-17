@@ -4,7 +4,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { ReactNode } from "react";
 import type { MealFood } from "caloplan-core";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { totalKcal, kcal } from "@/utils/nutrition";
 
 interface FoodItemProps {
@@ -20,6 +21,7 @@ interface FoodItemProps {
 }
 
 export function FoodItem({ mealFood, actions, onPress, onLongPress, showAmountBadge }: FoodItemProps) {
+  const { colors } = useTheme();
   return (
     <TouchableOpacity
       style={styles.row}
@@ -28,21 +30,21 @@ export function FoodItem({ mealFood, actions, onPress, onLongPress, showAmountBa
       disabled={!onPress && !onLongPress}
       activeOpacity={0.7}
     >
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{mealFood.food.name.slice(0, 1)}</Text>
+      <View style={[styles.avatar, { backgroundColor: colors.accentSoft }]}>
+        <Text style={[styles.avatarText, { color: colors.accent }]}>{mealFood.food.name.slice(0, 1)}</Text>
       </View>
       <View style={styles.middle}>
         <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
             {mealFood.food.name}
           </Text>
           {showAmountBadge && mealFood.amount > 1 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>×{mealFood.amount}</Text>
+            <View style={[styles.badge, { backgroundColor: colors.surfaceMuted }]}>
+              <Text style={[styles.badgeText, { color: colors.textSecondary }]}>×{mealFood.amount}</Text>
             </View>
           ) : null}
         </View>
-        <Text style={styles.nutrition}>{kcal(totalKcal(mealFood.nutrition))} kcal</Text>
+        <Text style={[styles.nutrition, { color: colors.textTertiary }]}>{kcal(totalKcal(mealFood.nutrition))} kcal</Text>
       </View>
       {actions}
     </TouchableOpacity>
@@ -60,34 +62,28 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.sm,
-    backgroundColor: colors.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     ...typography.label,
-    color: colors.accent,
   },
   middle: { flex: 1, gap: 1 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   name: {
     ...typography.body,
-    color: colors.text,
     flexShrink: 1,
   },
   badge: {
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 1,
   },
   badgeText: {
     ...typography.caption,
-    color: colors.textSecondary,
   },
   nutrition: {
     ...typography.caption,
-    color: colors.textTertiary,
     fontVariant: ["tabular-nums"],
   },
 });

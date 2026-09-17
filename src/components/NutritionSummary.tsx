@@ -3,7 +3,8 @@
  * 纯展示组件，数据由页面 Hook 提供。
  */
 import { StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { ProgressBar } from "./ProgressBar";
 import type { MacroPoint } from "@/utils/nutrition";
 import { kcal, gram } from "@/utils/nutrition";
@@ -16,10 +17,10 @@ interface NutritionSummaryProps {
 }
 
 const MACRO_COLORS: Record<MacroPoint["key"], string> = {
-  carbon: colors.macroCarbon,
-  protein: colors.macroProtein,
-  fat: colors.macroFat,
-  salt: colors.macroSalt,
+  carbon: lightColors.macroCarbon,
+  protein: lightColors.macroProtein,
+  fat: lightColors.macroFat,
+  salt: lightColors.macroSalt,
 };
 
 export function NutritionSummary({
@@ -28,20 +29,21 @@ export function NutritionSummary({
   calorieRatio,
   macros,
 }: NutritionSummaryProps) {
+  const { colors } = useTheme();
   const remaining = Math.max(calorieTarget - calorieConsumed, 0);
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <View style={styles.calorieRow}>
         <View>
-          <Text style={styles.kcalValue}>{kcal(calorieConsumed)}</Text>
-          <Text style={styles.kcalCaption}>
+          <Text style={[styles.kcalValue, { color: colors.text }]}>{kcal(calorieConsumed)}</Text>
+          <Text style={[styles.kcalCaption, { color: colors.textSecondary }]}>
             已摄入 kcal
             {remaining > 0 ? ` · 还可摄入 ${kcal(remaining)}` : " · 已超目标"}
           </Text>
         </View>
         <View style={styles.targetBox}>
-          <Text style={styles.targetValue}>{kcal(calorieTarget)}</Text>
-          <Text style={styles.targetCaption}>目标</Text>
+          <Text style={[styles.targetValue, { color: colors.text }]}>{kcal(calorieTarget)}</Text>
+          <Text style={[styles.targetCaption, { color: colors.textTertiary }]}>目标</Text>
         </View>
       </View>
 
@@ -51,8 +53,8 @@ export function NutritionSummary({
         {macros.map((m) => (
           <View key={m.key} style={styles.macroRow}>
             <View style={styles.macroHead}>
-              <Text style={styles.macroLabel}>{m.label}</Text>
-              <Text style={styles.macroValue}>
+              <Text style={[styles.macroLabel, { color: colors.textSecondary }]}>{m.label}</Text>
+              <Text style={[styles.macroValue, { color: colors.textTertiary }]}>
                 {gram(m.consumed)} / {gram(m.target)} g
               </Text>
             </View>
@@ -66,7 +68,6 @@ export function NutritionSummary({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.md,
@@ -78,11 +79,9 @@ const styles = StyleSheet.create({
   },
   kcalValue: {
     ...typography.display,
-    color: colors.text,
   },
   kcalCaption: {
     ...typography.caption,
-    color: colors.textSecondary,
     marginTop: 2,
   },
   targetBox: {
@@ -91,11 +90,9 @@ const styles = StyleSheet.create({
   },
   targetValue: {
     ...typography.bodyStrong,
-    color: colors.text,
   },
   targetCaption: {
     ...typography.caption,
-    color: colors.textTertiary,
   },
   macroList: {
     gap: spacing.md,
@@ -111,11 +108,9 @@ const styles = StyleSheet.create({
   },
   macroLabel: {
     ...typography.bodySmall,
-    color: colors.textSecondary,
   },
   macroValue: {
     ...typography.caption,
-    color: colors.textTertiary,
     fontVariant: ["tabular-nums"],
   },
 });

@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { env } from "@/services/env";
 
 export interface LoginFields {
@@ -31,6 +32,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
+  const { colors } = useTheme();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -50,20 +52,23 @@ export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={styles.card}>
-        <View style={styles.modeRow}>
-          {(["login", "register"] as const).map((m) => (
-            <TouchableOpacity
-              key={m}
-              style={[styles.modeTab, mode === m && styles.modeTabActive]}
-              onPress={() => setMode(m)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.modeText, mode === m && styles.modeTextActive]}>
-                {m === "login" ? "登录" : "注册"}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      <View style={[styles.card, { backgroundColor: colors.surface }]}>
+        <View style={[styles.modeRow, { backgroundColor: colors.surfaceMuted }]}>
+          {(["login", "register"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[styles.modeTab, active && { backgroundColor: colors.surface }]}
+                onPress={() => setMode(m)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.modeText, { color: active ? colors.text : colors.textSecondary }]}>
+                  {m === "login" ? "登录" : "注册"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Field label="用户名" value={username} onChangeText={setUsername} placeholder="demo" autoCapitalize="none" />
@@ -73,7 +78,7 @@ export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
         <Field label="密码" value={password} onChangeText={setPassword} placeholder="••••••••" secureTextEntry />
 
         <TouchableOpacity style={styles.urlsToggle} onPress={() => setShowUrls((v) => !v)} activeOpacity={0.7}>
-          <Text style={styles.urlsToggleText}>{showUrls ? "收起服务地址" : "服务地址（可选）"}</Text>
+          <Text style={[styles.urlsToggleText, { color: colors.accent }]}>{showUrls ? "收起服务地址" : "服务地址（可选）"}</Text>
         </TouchableOpacity>
         {showUrls ? (
           <View style={styles.urlsBox}>
@@ -83,18 +88,20 @@ export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
           </View>
         ) : null}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={[styles.submit, (!canSubmit || busy) && styles.submitDisabled]}
+          style={[styles.submit, { backgroundColor: canSubmit && !busy ? colors.accent : colors.surfaceMuted }]}
           onPress={submit}
           disabled={!canSubmit || busy}
           activeOpacity={0.75}
         >
-          <Text style={styles.submitText}>{busy ? "连接中…" : mode === "login" ? "登录" : "注册并登录"}</Text>
+          <Text style={[styles.submitText, { color: canSubmit && !busy ? colors.textOnAccent : colors.textTertiary }]}>
+            {busy ? "连接中…" : mode === "login" ? "登录" : "注册并登录"}
+          </Text>
         </TouchableOpacity>
 
-        <Text style={styles.hint}>
+        <Text style={[styles.hint, { color: colors.textTertiary }]}>
           登录后数据经由 caloplan-user / caloplan-core / caloplan-chat 模块读写；未登录时展示 Demo 数据。
         </Text>
       </View>
@@ -111,11 +118,12 @@ function Field(props: {
   autoCapitalize?: "none" | "sentences";
   keyboardType?: "email-address" | "default";
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{props.label}</Text>
+      <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>{props.label}</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: colors.surfaceMuted, color: colors.text }]}
         value={props.value}
         onChangeText={props.onChangeText}
         placeholder={props.placeholder}
@@ -131,14 +139,12 @@ function Field(props: {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.md,
   },
   modeRow: {
     flexDirection: "row",
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.full,
     padding: 3,
     gap: 3,
@@ -150,28 +156,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  modeTabActive: {
-    backgroundColor: colors.surface,
-  },
   modeText: {
     ...typography.label,
-    color: colors.textSecondary,
-  },
-  modeTextActive: {
-    color: colors.text,
   },
   field: { gap: spacing.xs },
   fieldLabel: {
     ...typography.caption,
-    color: colors.textSecondary,
   },
   input: {
     height: 42,
-    backgroundColor: colors.surfaceMuted,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     ...typography.body,
-    color: colors.text,
   },
   urlsToggle: {
     alignSelf: "flex-start",
@@ -179,30 +175,22 @@ const styles = StyleSheet.create({
   },
   urlsToggleText: {
     ...typography.caption,
-    color: colors.accent,
   },
   urlsBox: { gap: spacing.md },
   error: {
     ...typography.bodySmall,
-    color: colors.danger,
   },
   submit: {
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  submitDisabled: {
-    backgroundColor: colors.surfaceMuted,
-  },
   submitText: {
     ...typography.label,
-    color: colors.textOnAccent,
   },
   hint: {
     ...typography.caption,
-    color: colors.textTertiary,
     lineHeight: 18,
   },
 });
