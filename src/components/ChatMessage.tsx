@@ -133,28 +133,49 @@ export function ChatMessage({ message }: ChatMessageProps) {
     );
   };
 
+  const timeLabel = new Date(message.createdAt).toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const toolNames = message.toolCalls?.map((t) => t.name).join(" · ") ?? "";
+  const tokenLabel = message.usage?.totalTokens ? `${message.usage.totalTokens} tokens` : "";
+
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
-      <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
-        {blocks != null ? (
-          <View style={styles.blocks}>
-            {blocks.map((block, i) =>
-              block.type === "image_url" ? (
-                <Pressable key={i} onPress={() => setPreviewUrl(blockUrl(block))}>
-                  {({ pressed }) => (
-                    <Image
-                      source={{ uri: blockUrl(block) ?? undefined }}
-                      style={[styles.inlineImage, pressed && styles.inlineImagePressed]}
-                    />
-                  )}
-                </Pressable>
-              ) : null,
-            )}
-            {renderText()}
+      <View style={styles.bubbleColumn}>
+        <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
+          {blocks != null ? (
+            <View style={styles.blocks}>
+              {blocks.map((block, i) =>
+                block.type === "image_url" ? (
+                  <Pressable key={i} onPress={() => setPreviewUrl(blockUrl(block))}>
+                    {({ pressed }) => (
+                      <Image
+                        source={{ uri: blockUrl(block) ?? undefined }}
+                        style={[styles.inlineImage, pressed && styles.inlineImagePressed]}
+                      />
+                    )}
+                  </Pressable>
+                ) : null,
+              )}
+              {renderText()}
+            </View>
+          ) : (
+            renderText()
+          )}
+        </View>
+        <View style={[styles.metaRow, isUser ? styles.metaRowUser : styles.metaRowAssistant]}>
+          {toolNames ? (
+            <Text style={styles.toolTag} numberOfLines={1}>
+              🔧 {toolNames}
+            </Text>
+          ) : null}
+          <View style={styles.metaRight}>
+            {tokenLabel ? <Text style={styles.tokenTag}>{tokenLabel}</Text> : null}
+            <Text style={styles.time}>{timeLabel}</Text>
           </View>
-        ) : (
-          renderText()
-        )}
+        </View>
       </View>
       {isFailed ? <Text style={styles.failed}>发送失败</Text> : null}
 
@@ -177,8 +198,12 @@ const styles = StyleSheet.create({
   },
   rowUser: { justifyContent: "flex-end" },
   rowAssistant: { justifyContent: "flex-start" },
-  bubble: {
+  bubbleColumn: {
     maxWidth: "86%",
+    gap: 2,
+  },
+  bubble: {
+    maxWidth: "100%",
     borderRadius: radius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
@@ -190,6 +215,45 @@ const styles = StyleSheet.create({
   bubbleAssistant: {
     backgroundColor: colors.chatAssistantBubble,
     borderBottomLeftRadius: radius.sm,
+  },
+  time: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textTertiary,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    paddingHorizontal: 2,
+  },
+  metaRowUser: {
+    justifyContent: "flex-end",
+  },
+  metaRowAssistant: {
+    justifyContent: "flex-start",
+  },
+  metaRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  toolTag: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.accent,
+    flexShrink: 1,
+  },
+  tokenTag: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textTertiary,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius.sm,
+    overflow: "hidden",
   },
   blocks: {
     gap: spacing.sm,

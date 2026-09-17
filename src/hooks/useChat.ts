@@ -36,6 +36,8 @@ function snapshotSessions(list: ChatSession[]): ChatSession[] {
       pendingAction: m.pendingAction
         ? { ...m.pendingAction, tools: m.pendingAction.tools.map((t) => ({ ...t })) }
         : undefined,
+      toolCalls: m.toolCalls ? m.toolCalls.map((t) => ({ ...t })) : undefined,
+      usage: m.usage ? { ...m.usage } : undefined,
     })),
   }));
 }
