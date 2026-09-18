@@ -31,6 +31,46 @@ pnpm build             # tsc -b && vite build
 pnpm lint
 ```
 
+## 界面预览
+
+**无需启动任何后端微服务**即可体验完整界面：Demo 模式（`VITE_DEMO_MODE=true`）下，未登录时展示原型数据（`cp .env.example .env` 后默认开启）。
+
+```bash
+pnpm install
+pnpm exec vite --port 3000 --strictPort   # 打开 http://localhost:3000
+```
+
+| 页面 | 说明 |
+| --- | --- |
+| Today | 今日摄入总览：热量 / 营养素进度、四餐记录、运动模块 |
+| Meals | 餐食列表：按早 / 午 / 晚 / 加餐分组，含每项食物热量 |
+| AI | AI 对话：营养摄入分析、食谱推荐（Demo 会话） |
+| Account | 登录 / 注册入口，连接 caloplan-user 等真实模块 |
+
+### Today — 今日状态总览
+
+![Today 今日状态总览](docs/screenshots/today.png)
+
+身体数据、热量与碳水 / 蛋白质 / 脂肪 / 盐摄入进度、当日四餐与运动记录一览。
+
+### Meals — 餐食列表
+
+![Meals 餐食列表](docs/screenshots/meals.png)
+
+按餐次分组展示当日餐食与每项食物的热量，可进入编辑 / 添加。
+
+### AI — AI 对话
+
+![AI AI 对话](docs/screenshots/ai.png)
+
+对话式记餐与营养建议：问「今天营养够不够」即可获得摄入分析，或让 AI 规划一餐并加入记录。
+
+### Account — 账号
+
+![Account 账号](docs/screenshots/account.png)
+
+登录 / 注册入口；未登录时自动使用 Demo 数据，登录后读写真实微服务。
+
 ## 架构
 
 ```
