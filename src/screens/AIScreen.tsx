@@ -5,7 +5,7 @@
  * 支持：会话、消息、流式、加载/错误态、待审批确认/取消。
  */
 import { useEffect, useRef } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { ScrollViewInstance } from "react-native";
 import type { ChatContentBlock } from "caloplan-chat";
 import { colors as lightColors, layout, radius, spacing, typography } from "@/theme";
@@ -24,6 +24,18 @@ export function AIScreen() {
   const chat = useChat();
   const { colors } = useTheme();
   const scrollRef = useRef<ScrollViewInstance>(null);
+  const listOpacity = useRef(new Animated.Value(1)).current;
+  const prevSessionId = useRef<string | null>(chat.activeSessionId);
+
+  // 切换会话时消息列表淡入淡出
+  useEffect(() => {
+    if (prevSessionId.current === chat.activeSessionId) return;
+    prevSessionId.current = chat.activeSessionId;
+    Animated.sequence([
+      Animated.timing(listOpacity, { toValue: 0, duration: 120, useNativeDriver: true }),
+      Animated.timing(listOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+    ]).start();
+  }, [chat.activeSessionId, listOpacity]);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -53,29 +65,30 @@ export function AIScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sessionsContent}
         >
-          {chat.sessions.map((s) => {
+          {chat.sessions.map((s, index) => {
             const active = s.id === chat.activeSessionId;
             return (
-              <TouchableOpacity
-                key={s.id}
-                style={[styles.sessionChip, { backgroundColor: active ? colors.accent : colors.surface }]}
-                onPress={() => chat.selectSession(s.id)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[styles.sessionText, { color: active ? colors.textOnAccent : colors.textSecondary }]}
-                  numberOfLines={1}
-                >
-                  {s.title || "新会话"}
-                </Text>
+              <AnimatedChip key={s.id} delay={index * 30} active={active}>
                 <TouchableOpacity
-                  style={[styles.sessionDelete, { backgroundColor: active ? "rgba(255,255,255,0.25)" : colors.surfaceMuted }]}
-                  onPress={() => void chat.deleteSession(s.id)}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={[styles.sessionChip, { backgroundColor: active ? colors.accent : colors.surface }]}
+                  onPress={() => chat.selectSession(s.id)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[styles.sessionDeleteText, { color: active ? colors.textOnAccent : colors.textSecondary }]}>×</Text>
+                  <Text
+                    style={[styles.sessionText, { color: active ? colors.textOnAccent : colors.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {s.title || "新会话"}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.sessionDelete, { backgroundColor: active ? "rgba(255,255,255,0.25)" : colors.surfaceMuted }]}
+                    onPress={() => void chat.deleteSession(s.id)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Text style={[styles.sessionDeleteText, { color: active ? colors.textOnAccent : colors.textSecondary }]}>×</Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
+              </AnimatedChip>
             );
           })}
           <TouchableOpacity
@@ -105,26 +118,30 @@ export function AIScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
-          ref={scrollRef}
-          style={styles.messages}
-          contentContainerStyle={styles.messagesContent}
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
-          showsVerticalScrollIndicator={false}
+        <Animated.View
+          style={[styles.messagesWrapper, { opacity: listOpacity }]}
         >
-          {chat.activeSession.messages.map((m) => (
-            <ChatMessage key={m.id} message={m} />
-          ))}
+          <ScrollView
+            ref={scrollRef}
+            style={styles.messages}
+            contentContainerStyle={styles.messagesContent}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+            showsVerticalScrollIndicator={false}
+          >
+            {chat.activeSession.messages.map((m) => (
+              <ChatMessage key={m.id} message={m} />
+            ))}
 
-          {chat.pendingAction ? (
-            <PendingActionCard
-              pendingAction={chat.pendingAction}
-              busy={chat.sending}
-              onConfirm={() => void chat.confirm()}
-              onCancel={() => void chat.cancel()}
-            />
-          ) : null}
-        </ScrollView>
+            {chat.pendingAction ? (
+              <PendingActionCard
+                pendingAction={chat.pendingAction}
+                busy={chat.sending}
+                onConfirm={() => void chat.confirm()}
+                onCancel={() => void chat.cancel()}
+              />
+            ) : null}
+          </ScrollView>
+        </Animated.View>
       )}
 
       {/* 错误横幅 */}
@@ -222,6 +239,7 @@ const styles = StyleSheet.create({
     ...typography.label,
   },
   messages: { flex: 1, minHeight: 0 },
+  messagesWrapper: { flex: 1, minHeight: 0 },
   messagesContent: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -255,3 +273,40 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+/**
+ * 会话 chip 动画：
+ * - 入场：挂载时淡入 + 轻微缩放弹入（初始加载按 index 依次淡入）
+ * - 选中：active 时轻微放大弹入，切换会话时有明显的选中反馈
+ */
+function AnimatedChip({ children, delay = 0, active = false }: { children: React.ReactNode; delay?: number; active?: boolean }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const enterScale = useRef(new Animated.Value(0.88)).current;
+  const activeScale = useRef(new Animated.Value(active ? 1.04 : 1)).current;
+
+  // 入场动画
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 220, delay, useNativeDriver: true }),
+      Animated.spring(enterScale, { toValue: 1, friction: 7, tension: 180, delay, useNativeDriver: true }),
+    ]).start();
+  }, [opacity, enterScale, delay]);
+
+  // active 切换动画
+  useEffect(() => {
+    Animated.spring(activeScale, {
+      toValue: active ? 1.04 : 1,
+      friction: 6,
+      tension: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [active, activeScale]);
+
+  const combinedScale = Animated.multiply(enterScale, activeScale);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ scale: combinedScale }] }}>
+      {children}
+    </Animated.View>
+  );
+}

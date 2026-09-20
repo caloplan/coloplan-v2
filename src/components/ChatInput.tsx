@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   StyleSheet,
   Text,
@@ -41,6 +42,23 @@ export function ChatInput({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const focusAnim = useRef(new Animated.Value(0)).current;
+
+  const handleFocus = () => {
+    Animated.timing(focusAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
+  };
+  const handleBlur = () => {
+    Animated.timing(focusAnim, { toValue: 0, duration: 180, useNativeDriver: false }).start();
+  };
+
+  const inputBorderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border, colors.accent],
+  });
+  const inputShadowOpacity = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.15],
+  });
 
   const hasImageSupport = typeof uploadImage === "function";
   const canSend =
@@ -143,19 +161,35 @@ export function ChatInput({
             <Text style={[styles.imageBtnText, { color: colors.textSecondary }]}>＋</Text>
           </TouchableOpacity>
         ) : null}
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surface, color: colors.text }]}
-          value={text}
-          onChangeText={setText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textTertiary}
-          multiline
-          maxLength={2000}
-          editable={!disabled && !sending}
-          onSubmitEditing={submit}
-          returnKeyType="send"
-          blurOnSubmit={false}
-        />
+        <Animated.View
+          style={[
+            styles.inputWrapper,
+            {
+              backgroundColor: colors.surface,
+              borderColor: inputBorderColor,
+              shadowOpacity: inputShadowOpacity,
+              shadowColor: colors.accent,
+              shadowOffset: { width: 0, height: 0 },
+              shadowRadius: 8,
+            },
+          ]}
+        >
+          <TextInput
+            style={[styles.input, { color: colors.text }]}
+            value={text}
+            onChangeText={setText}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textTertiary}
+            multiline
+            maxLength={2000}
+            editable={!disabled && !sending}
+            onSubmitEditing={submit}
+            returnKeyType="send"
+            blurOnSubmit={false}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+          />
+        </Animated.View>
         <TouchableOpacity
           style={[styles.sendBtn, !canSend && { backgroundColor: colors.surfaceMuted }, canSend && { backgroundColor: colors.accent }]}
           onPress={submit}
@@ -243,6 +277,14 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     ...typography.body,
+  },
+  inputWrapper: {
+    flex: 1,
+    minHeight: 42,
+    maxHeight: 120,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    overflow: "hidden",
   },
   sendBtn: {
     height: 42,

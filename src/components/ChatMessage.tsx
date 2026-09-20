@@ -6,9 +6,9 @@
  * assistant 消息使用 react-markdown + remark-gfm 渲染（代码块/列表/加粗等），
  * user 消息恒为纯文本。流式输出时在内容尾部显示光标 ▍。
  */
-import { Children, useState } from "react";
+import { Children, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ChatMessage as ChatMessageModel, ChatContentBlock } from "caloplan-chat";
@@ -97,6 +97,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const isStreaming = message.status === "streaming";
   const isFailed = message.status === "failed";
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const msgOpacity = useRef(new Animated.Value(0)).current;
+  const msgTranslateX = useRef(new Animated.Value(24)).current;
+
+  // 入场动画：从右往左淡入
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(msgOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(msgTranslateX, { toValue: 0, friction: 8, tension: 120, useNativeDriver: true }),
+    ]).start();
+  }, [msgOpacity, msgTranslateX]);
 
   const blocks = Array.isArray(message.content) ? message.content : null;
   const text =
@@ -142,7 +152,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
   };
 
   return (
-    <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
+    <Animated.View
+      style={[
+        styles.row,
+        isUser ? styles.rowUser : styles.rowAssistant,
+        { opacity: msgOpacity, transform: [{ translateX: msgTranslateX }] },
+      ]}
+    >
       <View style={styles.bubbleColumn}>
         <View
           style={[
@@ -197,7 +213,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           ) : null}
         </Pressable>
       </Modal>
-    </View>
+    </Animated.View>
   );
 }
 
