@@ -1,7 +1,7 @@
 /** 状态组件：加载 / 错误 / 空态（轻量，无装饰）。 */
 import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors as lightColors, spacing, typography } from "@/theme";
+import { spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 
 /* ── LoadingState ── */

@@ -17,7 +17,7 @@ import {
   View,
 } from "react-native";
 import type { ChatContentBlock } from "caloplan-chat";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 
 interface ChatInputProps {

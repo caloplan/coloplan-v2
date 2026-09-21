@@ -13,7 +13,6 @@ import type { Food, Meal, MealType } from "caloplan-core";
 import {
   createMealFood,
   changeMealFoods,
-  deleteMealFoodById,
   changeMealFoodAmountById,
 } from "caloplan-core";
 import { useAuth, useIsDemo } from "./useAuth";

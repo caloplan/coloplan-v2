@@ -13,7 +13,8 @@ import type { ReactNode } from "react";
 import { darkColors, lightColors } from "./index";
 import type { ThemeMode } from "./index";
 
-type Colors = typeof lightColors;
+/** 颜色键集合（与 lightColors 完全一致），值为字符串色值，兼容 light / dark 两套色板 */
+type Colors = { readonly [K in keyof typeof lightColors]: string };
 
 interface ThemeContextValue {
   theme: ThemeMode;

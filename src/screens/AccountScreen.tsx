@@ -9,9 +9,12 @@ import { Screen } from "@/components/Screen";
 import { LoadingState } from "@/components/State";
 import { LoginForm } from "@/components/LoginForm";
 import type { LoginFields } from "@/components/LoginForm";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useAuth } from "@/hooks/useAuth";
+import { useToken } from "@/hooks/useToken";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { ProgressBar } from "@/components/ProgressBar";
 import { appServices } from "@/services/bootstrap";
 
 interface AccountScreenProps {
@@ -123,6 +126,8 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
             <SettingRow label="语言" value="简体中文" last />
           </Section>
 
+          <TokenUsageSection />
+
           <Section title="关于">
             <SettingRow label="版本" value="CaloPlan v2 · 原型" />
             <SettingRow
@@ -201,6 +206,110 @@ function SettingRow({ label, value, last }: { label: string; value: string; last
     <View style={[styles.settingRow, !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth }]}>
       <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
       <Text style={[styles.settingValue, { color: colors.textSecondary }]}>{value}</Text>
+    </View>
+  );
+}
+
+/**
+ * Token 用量区块：当前用户 LLM Token 使用快照 / 配额 / 剩余额度。
+ * 数据经 caloplan-token（client 只读）→ fastapi-chat-service 门户转发获取，
+ * 缓存优先（SWR）+ 后台静默刷新；数值变化用 AnimatedNumber 动态呈现。
+ */
+function TokenUsageSection() {
+  const token = useToken();
+  const { colors } = useTheme();
+
+  if (token.loading && !token.remaining) {
+    return (
+      <Section title="Token 用量">
+        <SettingRow label="加载中" value="…" last />
+      </Section>
+    );
+  }
+
+  if (token.error && !token.remaining) {
+    return (
+      <Section title="Token 用量">
+        <TouchableOpacity
+          style={styles.tokenErrorRow}
+          onPress={() => void token.refresh()}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tokenErrorText, { color: colors.textSecondary }]} numberOfLines={2}>
+            {token.error}（点击重试）
+          </Text>
+        </TouchableOpacity>
+      </Section>
+    );
+  }
+
+  if (!token.remaining) {
+    return (
+      <Section title="Token 用量">
+        <SettingRow label="暂无数据" value="—" last />
+      </Section>
+    );
+  }
+
+  const fmt = (n: number) => n.toLocaleString("zh-CN");
+  const { remaining, usage, quota } = token;
+  const dailyRatio = remaining.dailyLimit > 0 ? remaining.dailyUsed / remaining.dailyLimit : 0;
+  const monthLimit = quota?.monthlyLimit ?? null;
+  const monthRatio =
+    usage && monthLimit && monthLimit > 0 ? usage.monthTotalTokens / monthLimit : 0;
+
+  return (
+    <Section title="Token 用量">
+      <View style={styles.tokenQuotaBlock}>
+        <View style={styles.tokenQuotaHead}>
+          <Text style={[styles.tokenQuotaLabel, { color: colors.textSecondary }]}>今日配额</Text>
+          <AnimatedNumber
+            value={`${fmt(remaining.dailyUsed)} / ${fmt(remaining.dailyLimit)}`}
+            style={[styles.tokenQuotaValue, { color: colors.textTertiary }]}
+          />
+        </View>
+        <ProgressBar ratio={dailyRatio} color={colors.accent} height={8} />
+      </View>
+
+      <TokenRow label="今日已用" value={`${fmt(remaining.dailyUsed)} tokens`} />
+      <TokenRow label="今日剩余" value={`${fmt(remaining.dailyRemaining)} tokens`} />
+      <TokenRow label="单次上限" value={`${fmt(remaining.perRequestLimit)} tokens`} />
+
+      {monthLimit && usage ? (
+        <View style={styles.tokenQuotaBlock}>
+          <View style={styles.tokenQuotaHead}>
+            <Text style={[styles.tokenQuotaLabel, { color: colors.textSecondary }]}>当月配额</Text>
+            <AnimatedNumber
+              value={`${fmt(usage.monthTotalTokens)} / ${fmt(monthLimit)}`}
+              style={[styles.tokenQuotaValue, { color: colors.textTertiary }]}
+            />
+          </View>
+          <ProgressBar ratio={monthRatio} color={colors.macroProtein} height={5} />
+        </View>
+      ) : null}
+
+      <TokenRow label="当月累计" value={usage ? `${fmt(usage.monthTotalTokens)} tokens` : "—"} />
+      <TokenRow
+        label="累计调用"
+        value={usage ? `${fmt(usage.totalTokens)} tokens · ${fmt(usage.requestCount)} 次` : "—"}
+        last
+      />
+    </Section>
+  );
+}
+
+/** 带数字动画的 Token 行：值变化时与今日营养摄入条一致的淡入淡出效果 */
+function TokenRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.settingRow,
+        !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth },
+      ]}
+    >
+      <Text style={[styles.settingLabel, { color: colors.text }]}>{label}</Text>
+      <AnimatedNumber value={value} style={[styles.settingValue, { color: colors.textSecondary }]} />
     </View>
   );
 }
@@ -309,6 +418,7 @@ const styles = StyleSheet.create({
   },
   settingValue: {
     ...typography.bodySmall,
+    fontVariant: ["tabular-nums"],
   },
   rowBtn: {
     paddingVertical: spacing.md,
@@ -350,5 +460,29 @@ const styles = StyleSheet.create({
   okText: {
     ...typography.label,
     color: "#FFFFFF",
+  },
+  tokenErrorRow: {
+    paddingVertical: spacing.md,
+  },
+  tokenErrorText: {
+    ...typography.bodySmall,
+    lineHeight: 20,
+  },
+  tokenQuotaBlock: {
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  tokenQuotaHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  tokenQuotaLabel: {
+    ...typography.bodySmall,
+  },
+  tokenQuotaValue: {
+    ...typography.caption,
+    fontVariant: ["tabular-nums"],
   },
 });

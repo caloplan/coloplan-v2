@@ -6,11 +6,11 @@
  * 用于卡片、按钮、列表项等所有可交互区域。
  */
 import { useRef } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
-import type { PressableProps, ViewStyle } from "react-native";
+import { Animated, Pressable, StyleSheet } from "react-native";
+import type { PressableProps, StyleProp, ViewStyle } from "react-native";
 
 interface PressableScaleProps extends Omit<PressableProps, "style"> {
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   /** 按下时的缩放比例，默认 0.97 */
   pressScale?: number;
   /** 按下时的不透明度，默认 0.85 */

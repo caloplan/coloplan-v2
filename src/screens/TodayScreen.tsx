@@ -3,13 +3,13 @@
  * 回答「我今天状态如何？」（数秒内可读）。
  */
 import { useRef, useState } from "react";
-import { Animated, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Animated, Modal, StyleSheet, Text, TextInput, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { LoadingState, ErrorState, EmptyState } from "@/components/State";
 import { NutritionSummary } from "@/components/NutritionSummary";
 import { MealSummary } from "@/components/MealSummary";
 import { PressableScale } from "@/components/PressableScale";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useToday } from "@/hooks/useToday";
 import { todayLabel } from "@/utils/date";

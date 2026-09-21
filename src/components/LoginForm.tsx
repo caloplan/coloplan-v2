@@ -3,7 +3,7 @@
  * 注册模式需要邮箱验证码：先「获取验证码」（60s 冷却），再填写验证码。
  * 服务地址默认取 env，可展开修改（连接远程服务 / 本地服务）。
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { env } from "@/services/env";
 
@@ -58,6 +58,7 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
   const [metaUrl, setMetaUrl] = useState(env.metaUrl);
   const [chatUrl, setChatUrl] = useState(env.chatUrl);
   const [showUrls, setShowUrls] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codeSent, setCodeSent] = useState(false);
@@ -69,10 +70,24 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
     return () => clearTimeout(timer);
   }, [cooldown]);
 
+  // 密码强度（客户端与后端对齐：8-30 位 + 字母 + 数字 + 特殊字符）
+  const pwChecks = useMemo(
+    () => ({
+      len: password.length >= 8 && password.length <= 30,
+      letter: /[A-Za-z]/.test(password),
+      digit: /\d/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+    }),
+    [password],
+  );
+  const pwOk = pwChecks.len && pwChecks.letter && pwChecks.digit && pwChecks.special;
+  const pwScore = (pwChecks.len ? 1 : 0) + (pwChecks.letter ? 1 : 0) + (pwChecks.digit ? 1 : 0) + (pwChecks.special ? 1 : 0);
+
   const canSubmit =
     username.trim().length > 0 &&
     password.length > 0 &&
-    (mode === "login" || (email.trim().length > 0 && code.trim().length > 0));
+    (mode === "login" ||
+      (pwOk && email.trim().length > 0 && code.trim().length > 0));
 
   const sendCode = async () => {
     if (codeBusy || cooldown > 0 || !email.trim()) return;
@@ -158,11 +173,62 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
             {codeError ? <Text style={[styles.codeError, { color: colors.danger }]}>{codeError}</Text> : null}
           </>
         ) : null}
-        <Field label="密码" value={password} onChangeText={setPassword} placeholder="••••••••" secureTextEntry />
-        {mode === "register" ? (
-          <Text style={[styles.passwordHint, { color: colors.textTertiary }]}>
-            密码需 8-30 位，同时包含字母、数字和特殊字符（如 @$!%*#?&）
-          </Text>
+        {/* 密码：可切换明文/密文；注册时实时校验强度 */}
+        <View style={styles.field}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>密码</Text>
+          <View style={[styles.pwWrap, { backgroundColor: colors.surfaceMuted }]}>
+            <TextInput
+              style={[styles.pwInput, { color: colors.text }]}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="8-30 位，含字母/数字/特殊字符"
+              placeholderTextColor={colors.textTertiary}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword((v) => !v)}
+              activeOpacity={0.7}
+              hitSlop={8}
+              accessibilityLabel={showPassword ? "隐藏密码" : "显示密码"}
+            >
+              <Text style={[styles.pwEye, { color: colors.textSecondary }]}>
+                {showPassword ? "🙈" : "👁"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {mode === "register" && password.length > 0 ? (
+          <View style={styles.strengthBox}>
+            <View style={styles.strengthBar}>
+              {[0, 1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.strengthSeg,
+                    {
+                      backgroundColor:
+                        i < pwScore
+                          ? pwScore <= 1
+                            ? colors.danger
+                            : pwScore <= 2
+                              ? colors.warning
+                              : pwScore <= 3
+                                ? colors.accent
+                                : colors.accent
+                          : colors.divider,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+            <CheckItem ok={pwChecks.len} label="8-30 位" colors={colors} />
+            <CheckItem ok={pwChecks.letter} label="包含字母" colors={colors} />
+            <CheckItem ok={pwChecks.digit} label="包含数字" colors={colors} />
+            <CheckItem ok={pwChecks.special} label="包含特殊字符（如 @$!%*#?&）" colors={colors} />
+          </View>
         ) : null}
 
         <TouchableOpacity style={styles.urlsToggle} onPress={() => setShowUrls((v) => !v)} activeOpacity={0.7}>
@@ -194,6 +260,17 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
         </Text>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+function CheckItem({ ok, label, colors }: { ok: boolean; label: string; colors: ReturnType<typeof useTheme>["colors"] }) {
+  return (
+    <View style={styles.checkRow}>
+      <Text style={[styles.checkDot, { color: ok ? colors.accent : colors.textTertiary }]}>
+        {ok ? "✓" : "○"}
+      </Text>
+      <Text style={[styles.checkLabel, { color: ok ? colors.textSecondary : colors.textTertiary }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -258,6 +335,47 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     ...typography.body,
+  },
+  pwWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 42,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+  },
+  pwInput: {
+    flex: 1,
+    height: 42,
+    ...typography.body,
+  },
+  pwEye: {
+    fontSize: 16,
+    paddingLeft: spacing.sm,
+  },
+  strengthBox: {
+    gap: 4,
+  },
+  strengthBar: {
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: spacing.xs,
+  },
+  strengthSeg: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  checkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  checkDot: {
+    ...typography.caption,
+    width: 14,
+  },
+  checkLabel: {
+    ...typography.caption,
   },
   codeRow: {
     flexDirection: "row",

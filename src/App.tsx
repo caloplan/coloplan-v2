@@ -4,21 +4,32 @@
  * 导航：Header Navigation（Today / Meals / AI 页签 + 右上 Account）。
  * 不使用 Bottom Tab / Drawer / 额外路由库，保持轻量。
  */
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { HeaderNavigation } from "@/components/HeaderNavigation";
 import type { MainTab } from "@/components/HeaderNavigation";
 import { TodayScreen } from "@/screens/TodayScreen";
-import { MealsScreen } from "@/screens/MealsScreen";
-import { AIScreen } from "@/screens/AIScreen";
-import { AccountScreen } from "@/screens/AccountScreen";
 import { appServices } from "@/services/bootstrap";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { spacing, typography } from "@/theme";
 import { useOnboarding, ONBOARDING_STEPS } from "@/hooks/useOnboarding";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
+
+/**
+ * 非首屏页面懒加载（代码分包）：Meals / AI / Account 在首次进入对应页面时才加载，
+ * 首屏（Today）只加载 TodayScreen 及其依赖，减小首屏 bundle。
+ */
+const MealsScreen = lazy(() =>
+  import("@/screens/MealsScreen").then((m) => ({ default: m.MealsScreen })),
+);
+const AIScreen = lazy(() =>
+  import("@/screens/AIScreen").then((m) => ({ default: m.AIScreen })),
+);
+const AccountScreen = lazy(() =>
+  import("@/screens/AccountScreen").then((m) => ({ default: m.AccountScreen })),
+);
 
 function AppInner() {
   const [booted, setBooted] = useState(false);
@@ -77,7 +88,9 @@ function AppInner() {
           onOpenAccount={() => setAccountOpen(true)}
         />
       </View>
-      <View style={styles.content}>{content}</View>
+      <View style={styles.content}>
+        <Suspense fallback={<PageLoading colors={colors} />}>{content}</Suspense>
+      </View>
       {onboarding.active ? (
         <OnboardingOverlay
           stepIndex={onboarding.step}
@@ -86,6 +99,15 @@ function AppInner() {
           onSkip={onboarding.skip}
         />
       ) : null}
+    </View>
+  );
+}
+
+/** 懒加载页面的轻量加载态 */
+function PageLoading({ colors }: { colors: ReturnType<typeof useTheme>["colors"] }) {
+  return (
+    <View style={styles.boot}>
+      <Text style={[styles.bootText, { color: colors.textSecondary }]}>加载中…</Text>
     </View>
   );
 }

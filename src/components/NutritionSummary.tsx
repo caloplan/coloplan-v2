@@ -4,11 +4,10 @@
  *
  * 数值更新时：数字向左淡出 → 切换 → 从右侧淡入；进度条宽度平滑过渡。
  */
-import { useEffect, useRef, useState } from "react";
-import type { TextStyle } from "react-native";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { colors as lightColors, radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
+import { AnimatedNumber } from "./AnimatedNumber";
 import { ProgressBar } from "./ProgressBar";
 import type { MacroPoint } from "@/utils/nutrition";
 import { kcal, gram } from "@/utils/nutrition";
@@ -26,34 +25,6 @@ const MACRO_COLORS: Record<MacroPoint["key"], string> = {
   fat: lightColors.macroFat,
   salt: lightColors.macroSalt,
 };
-
-/**
- * 数字切换动画：值变化时向左淡出 → 切换值 → 从右侧淡入。
- * 视觉上形成"向左 fade"的切换效果。
- */
-function AnimatedNumber({ value, style }: { value: string; style?: TextStyle }) {
-  const anim = useRef(new Animated.Value(0)).current;
-  const [displayValue, setDisplayValue] = useState(value);
-
-  useEffect(() => {
-    if (displayValue === value) return;
-    // 向左淡出
-    Animated.timing(anim, { toValue: 1, duration: 140, useNativeDriver: true }).start(() => {
-      setDisplayValue(value);
-      // 从右侧淡入
-      Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }).start();
-    });
-  }, [value, displayValue, anim]);
-
-  const opacity = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
-  const translateX = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
-
-  return (
-    <Animated.Text style={[style, { opacity, transform: [{ translateX }] }]}>
-      {displayValue}
-    </Animated.Text>
-  );
-}
 
 export function NutritionSummary({
   calorieConsumed,

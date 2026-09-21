@@ -12,6 +12,7 @@ import { createCPCore, getCPCore } from "caloplan-core";
 import { createCPUser, getCPUser } from "caloplan-user";
 import type { UserSdkLike, UserProfile } from "caloplan-user";
 import { createCPChat, getCPChat } from "caloplan-chat";
+import { createCPToken, getCPToken } from "caloplan-token";
 import { createSdkPair } from "./sdk";
 import type { SdkPair } from "./sdk";
 import { env } from "./env";
@@ -270,6 +271,13 @@ class AppServices {
       tokenProvider: () => pair.userSdk.getToken(),
       cache,
     });
+    // 用户 Token 用量（caloplan-token，client 只读）：
+    // 不直连 fastapi-token-service，经 fastapi-chat-service 门户转发
+    // （GET /api/v1/token/usage|quota|remaining），透传当前用户 JWT。
+    createCPToken({
+      baseURL: chatUrl,
+      tokenProvider: () => pair.userSdk.getToken(),
+    });
   }
 
   /* ── 模块访问（未初始化时抛出明确错误） ── */
@@ -284,6 +292,10 @@ class AppServices {
 
   requireCPChat() {
     return getCPChat();
+  }
+
+  requireCPToken() {
+    return getCPToken();
   }
 
   /** 当前 access token（图片上传等需要直连鉴权服务的场景使用；未登录返回 null） */

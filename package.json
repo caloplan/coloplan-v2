@@ -14,6 +14,7 @@
     "caloplan-cache": "file:../caloplan-cache",
     "caloplan-chat": "file:../caloplan-chat",
     "caloplan-core": "file:../caloplan-core",
+    "caloplan-token": "file:../caloplan-token",
     "caloplan-user": "file:../caloplan-user",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

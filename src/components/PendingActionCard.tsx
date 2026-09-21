@@ -3,7 +3,7 @@
  */
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { PendingAction } from "caloplan-chat";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 
 interface PendingActionCardProps {

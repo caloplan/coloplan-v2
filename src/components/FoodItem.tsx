@@ -4,7 +4,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { ReactNode } from "react";
 import type { MealFood } from "caloplan-core";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { totalKcal, kcal } from "@/utils/nutrition";
 

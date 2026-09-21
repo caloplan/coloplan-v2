@@ -8,7 +8,7 @@ import { useEffect, useRef } from "react";
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { ScrollViewInstance } from "react-native";
 import type { ChatContentBlock } from "caloplan-chat";
-import { colors as lightColors, layout, radius, spacing, typography } from "@/theme";
+import { layout, radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { LoadingState, EmptyState } from "@/components/State";
 import { ChatMessage } from "@/components/ChatMessage";

@@ -20,6 +20,9 @@ importers:
       caloplan-core:
         specifier: file:../caloplan-core
         version: file:../caloplan-core
+      caloplan-token:
+        specifier: file:../caloplan-token
+        version: file:../caloplan-token
       caloplan-user:
         specifier: file:../caloplan-user
         version: file:../caloplan-user
@@ -641,6 +644,9 @@ packages:
 
   caloplan-core@file:../caloplan-core:
     resolution: {directory: ../caloplan-core, type: directory}
+
+  caloplan-token@file:../caloplan-token:
+    resolution: {directory: ../caloplan-token, type: directory}
 
   caloplan-user@file:../caloplan-user:
     resolution: {directory: ../caloplan-user, type: directory}
@@ -2648,6 +2654,8 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - supports-color
+
+  caloplan-token@file:../caloplan-token: {}
 
   caloplan-user@file:../caloplan-user:
     dependencies:

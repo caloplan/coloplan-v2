@@ -22,6 +22,23 @@ import { mockChatSeeds } from "./demoData";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Demo 模式的 token 用量（与 caloplan-chat ChatUsage 结构一致，仅供 UI 展示） */
+interface DemoUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+/** 按字符数估算 demo 模式的 token 用量 */
+function demoUsage(text: string): DemoUsage {
+  const chars = Math.max(1, text.length);
+  return {
+    promptTokens: Math.round(chars * 0.4),
+    completionTokens: chars,
+    totalTokens: Math.round(chars * 1.4),
+  };
+}
+
 let seedCounter = 0;
 function nextId(prefix: string): string {
   seedCounter += 1;
@@ -207,6 +224,7 @@ export class DemoChat {
       conversationId: sessionId,
       needApproval: needsApproval,
       toolCalls: [],
+      usage: demoUsage(toText(assistantMessage.content)),
     };
     yield { type: "done", result };
   }
@@ -251,6 +269,6 @@ export class DemoChat {
         }
       }
     }
-    return { taskid, approved, reply, toolResults: toolCalls };
+    return { taskid, approved, reply, toolResults: toolCalls, usage: demoUsage(reply) };
   }
 }
