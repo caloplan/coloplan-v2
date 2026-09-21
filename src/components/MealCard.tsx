@@ -2,14 +2,15 @@
  * 餐食卡片（Meals 页）：一餐内的食物行 + 编辑模式（长按进入，改完一次保存）。
  *
  * 交互：
- * - 非编辑态：仅展示食物 + 「添加」按钮；长按任意食物行进入编辑模式。
+ * - 非编辑态：仅展示食物；长按任意食物行进入编辑模式。
+ *   手动添加食物已移除——加餐/加食物全权交给 AI。
  * - 编辑态：每行显示份量步进器 + 删除按钮（本地改，不触网）；
  *   顶部显示「完成」「取消」，完成时一次 update 同步所有改动。
  */
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { Meal } from "caloplan-core";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { FoodItem } from "./FoodItem";
 import { totalKcal, kcal } from "@/utils/nutrition";
@@ -22,7 +23,6 @@ interface MealCardProps {
   editing: boolean;
   /** 入场动画错峰序号（列表中第几张卡片），默认 0 */
   index?: number;
-  onAddFood: (meal: Meal) => void;
   /** 长按进入编辑模式 */
   onStartEdit: () => void;
   /** 完成编辑（一次 update） */
@@ -38,7 +38,6 @@ export function MealCard({
   title,
   editing,
   index = 0,
-  onAddFood,
   onStartEdit,
   onSaveEdit,
   onCancelEdit,
@@ -95,11 +94,7 @@ export function MealCard({
                 <Text style={styles.saveText}>完成</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <TouchableOpacity style={[styles.addBtn, { backgroundColor: colors.accentSoft }]} onPress={() => onAddFood(meal)} activeOpacity={0.7}>
-              <Text style={[styles.addText, { color: colors.accent }]}>＋ 添加</Text>
-            </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -112,7 +107,7 @@ export function MealCard({
       <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
       {foodEntries.length === 0 ? (
-        <Text style={[styles.empty, { color: colors.textTertiary }]}>还没有食物，点「添加」记录一餐</Text>
+        <Text style={[styles.empty, { color: colors.textTertiary }]}>还没有食物，告诉 AI 今天吃了什么</Text>
       ) : (
         foodEntries.map(([foodKey, mf]) => (
           <FoodItem
@@ -174,15 +169,6 @@ const styles = StyleSheet.create({
   kcal: {
     ...typography.label,
     fontVariant: ["tabular-nums"],
-  },
-  addBtn: {
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  addText: {
-    ...typography.label,
-    fontSize: 13,
   },
   editActions: {
     flexDirection: "row",

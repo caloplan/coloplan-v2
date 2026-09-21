@@ -1,18 +1,15 @@
 /**
  * Meals — 食物与餐食管理：早/午/晚/加餐，食物条目、营养信息。
- * 业务逻辑来自 caloplan-core（读取餐食列表、向已有餐食添加/调整食物）。
+ * 业务逻辑来自 caloplan-core（读取餐食列表、长按调整份量）。
  *
- * 餐食「创建」由 AI 完成（AI 页推荐餐食 → 用户确认 → 写入今日记录），
- * 本页不提供手动新建餐食入口；空态引导用户去 AI 页让 AI 记餐。
+ * 餐食「创建/加食物」由 AI 完成（AI 页推荐/记录 → 用户确认 → 写入今日记录），
+ * 本页不提供手动新建/加餐食入口；空态引导用户去 AI 页让 AI 记餐。
  */
-import { useState } from "react";
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import type { Food, Meal } from "caloplan-core";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Screen } from "@/components/Screen";
 import { LoadingState, ErrorState, EmptyState } from "@/components/State";
 import { MealCard } from "@/components/MealCard";
-import { FoodItem } from "@/components/FoodItem";
-import { colors as lightColors, radius, spacing, typography } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useMeals } from "@/hooks/useMeals";
 import type { MainTab } from "@/components/HeaderNavigation";
@@ -24,13 +21,6 @@ interface MealsScreenProps {
 export function MealsScreen({ onNavigate }: MealsScreenProps) {
   const view = useMeals();
   const { colors } = useTheme();
-  const [targetMeal, setTargetMeal] = useState<Meal | null>(null);
-
-  const addFood = async (food: Food) => {
-    if (!targetMeal) return;
-    await view.addFoodToMeal(targetMeal.id, food, 1);
-    setTargetMeal(null);
-  };
 
   if (view.loading) {
     return (
@@ -94,7 +84,6 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
                       title={group.title}
                       index={cardIndex++}
                       editing={view.editingMealId === meal.id}
-                      onAddFood={setTargetMeal}
                       onStartEdit={() => view.startEdit(meal.id)}
                       onSaveEdit={() => void view.saveEdit(meal.id)}
                       onCancelEdit={() => view.cancelEdit(meal.id)}
@@ -108,53 +97,8 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
           );
         })()
       )}
-
-      {/* 添加食物弹层（向已有餐食补充食物，不新建餐食） */}
-      <Modal
-        visible={targetMeal != null}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setTargetMeal(null)}
-      >
-        <View style={styles.modalMask}>
-          <View style={[styles.modal, { backgroundColor: colors.bg }]}>
-            <View style={styles.modalHead}>
-              <View>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>添加食物</Text>
-                <Text style={[styles.modalSub, { color: colors.textSecondary }]}>到「{targetMeal ? mealTypeTitle(targetMeal.type) : ""}」</Text>
-              </View>
-              <TouchableOpacity onPress={() => setTargetMeal(null)} activeOpacity={0.7}>
-                <Text style={[styles.close, { color: colors.accent }]}>关闭</Text>
-              </TouchableOpacity>
-            </View>
-
-            {view.foodLibraryIsFallback ? (
-              <Text style={[styles.fallbackNote, { color: colors.warning }]}>示例食物（当前食物库为空，登录后可管理自有食物）</Text>
-            ) : null}
-
-            <FlatList
-              data={view.foodLibrary}
-              keyExtractor={(f) => f.id}
-              style={styles.foodList}
-              contentContainerStyle={styles.foodListContent}
-              renderItem={({ item }) => (
-                <FoodItem
-                  mealFood={{ food: item, amount: 1, nutrition: item.nutrition }}
-                  onPress={() => void addFood(item)}
-                />
-              )}
-              ItemSeparatorComponent={() => <View style={[styles.sep, { backgroundColor: colors.divider }]} />}
-              ListEmptyComponent={<EmptyState title="食物库为空" />}
-            />
-          </View>
-        </View>
-      </Modal>
     </Screen>
   );
-}
-
-function mealTypeTitle(type: string): string {
-  return { breakfast: "早餐", launch: "午餐", dinner: "晚餐", snack: "加餐" }[type] ?? type;
 }
 
 const styles = StyleSheet.create({
@@ -196,43 +140,5 @@ const styles = StyleSheet.create({
   },
   groupCount: {
     ...typography.caption,
-  },
-  modalMask: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  modal: {
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    maxHeight: "75%",
-    paddingTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-  modalHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.md,
-  },
-  modalTitle: {
-    ...typography.section,
-  },
-  modalSub: {
-    ...typography.caption,
-    marginTop: 2,
-  },
-  close: {
-    ...typography.label,
-  },
-  fallbackNote: {
-    ...typography.caption,
-    marginBottom: spacing.sm,
-  },
-  foodList: { flexGrow: 0 },
-  foodListContent: { paddingBottom: spacing.lg },
-  sep: {
-    height: StyleSheet.hairlineWidth,
   },
 });
