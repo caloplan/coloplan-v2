@@ -4,6 +4,9 @@ import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // 相对 base：产物资源用 ./assets/... 引用，可部署在 nginx 任意子路径下
+  // （若希望固定前缀，改为 '/xxx/' 并在 nginx location 中保持一致）
+  base: "./",
   plugins: [react()],
   resolve: {
     alias: {
