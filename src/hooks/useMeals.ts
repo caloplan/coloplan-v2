@@ -94,9 +94,10 @@ export function useMeals(): MealsViewModel {
     try {
       const cpCore = appServices.requireCPCore();
       // SWR：餐食列表与食物库各自缓存，先渲染旧数据再后台刷新
-      // 餐食只看当天（created_time 过滤），缓存 key 按天隔离，避免跨天旧数据残留
+      // 餐食只看当天（created_time 过滤）；key 固定为 caloplan_meals（不带日期），
+      // 每次进入后台 refresh 拉当天数据覆盖，只保留当天视图，不堆积按天 key
       const today = todayString();
-      const mealsKey = `caloplan_meals_${today}`;
+      const mealsKey = "caloplan_meals";
       const foodKey = "caloplan_food_library";
       const mealsRes = await swrLoad<Meal[]>(mealsKey, () =>
         cpCore.meal.listMine({ date: today }),

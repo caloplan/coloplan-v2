@@ -22,6 +22,8 @@ export interface LoginFields {
   password: string;
   email: string;
   code: string;
+  /** 姓名/昵称（注册可选，为空后端存 null，渲染时回退 username） */
+  fullName: string;
   userUrl: string;
   metaUrl: string;
   chatUrl: string;
@@ -49,6 +51,7 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [userUrl, setUserUrl] = useState(env.userUrl);
@@ -94,6 +97,7 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
       password,
       email: email.trim(),
       code: code.trim(),
+      fullName: fullName.trim(),
       userUrl,
       metaUrl,
       chatUrl,
@@ -124,6 +128,7 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
         <Field label="用户名" value={username} onChangeText={setUsername} placeholder="demo" autoCapitalize="none" />
         {mode === "register" ? (
           <>
+            <Field label="姓名/昵称（可选）" value={fullName} onChangeText={setFullName} placeholder="怎么称呼你" maxLength={100} />
             <Field label="邮箱" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
             <View style={styles.codeRow}>
               <View style={styles.codeInputWrap}>
@@ -154,6 +159,11 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
           </>
         ) : null}
         <Field label="密码" value={password} onChangeText={setPassword} placeholder="••••••••" secureTextEntry />
+        {mode === "register" ? (
+          <Text style={[styles.passwordHint, { color: colors.textTertiary }]}>
+            密码需 8-30 位，同时包含字母、数字和特殊字符（如 @$!%*#?&）
+          </Text>
+        ) : null}
 
         <TouchableOpacity style={styles.urlsToggle} onPress={() => setShowUrls((v) => !v)} activeOpacity={0.7}>
           <Text style={[styles.urlsToggleText, { color: colors.accent }]}>{showUrls ? "收起服务地址" : "服务地址（可选）"}</Text>
@@ -195,6 +205,7 @@ function Field(props: {
   secureTextEntry?: boolean;
   autoCapitalize?: "none" | "sentences";
   keyboardType?: "email-address" | "default";
+  maxLength?: number;
 }) {
   const { colors } = useTheme();
   return (
@@ -209,6 +220,7 @@ function Field(props: {
         secureTextEntry={props.secureTextEntry}
         autoCapitalize={props.autoCapitalize}
         keyboardType={props.keyboardType}
+        maxLength={props.maxLength}
         autoCorrect={false}
       />
     </View>
@@ -269,6 +281,10 @@ const styles = StyleSheet.create({
   },
   codeError: {
     ...typography.bodySmall,
+  },
+  passwordHint: {
+    ...typography.caption,
+    lineHeight: 18,
   },
   urlsToggle: {
     alignSelf: "flex-start",

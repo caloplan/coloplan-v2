@@ -67,6 +67,16 @@ export class UserSdk {
     return this.tokenManager.onTokenRefresh(callback);
   }
 
+  /**
+   * 供 meta 等其他 SDK 在发请求前确保 access token 新鲜：
+   * - 临期/过期时用 refresh token 静默换新（in-flight 去重，并发只刷一次）；
+   * - force=true 用于收到 401 后的强制续期。
+   * 刷新失败（refresh token 也过期）会抛出，由调用方按需重新登录处理。
+   */
+  async refreshIfNeeded(force = false): Promise<void> {
+    await this.tokenManager.refreshIfNeeded(() => this.auth.refresh(), force);
+  }
+
   close(): void {
     this.tokenManager.clear();
   }

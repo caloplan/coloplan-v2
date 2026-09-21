@@ -44,6 +44,7 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
           email: fields.email,
           password: fields.password,
           code: fields.code,
+          fullName: fields.fullName,
           userUrl: fields.userUrl,
           metaUrl: fields.metaUrl,
           chatUrl: fields.chatUrl,
@@ -98,21 +99,24 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
 
       {auth.status === "authenticated" && auth.profile ? (
         <>
-          <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.avatarText, { color: colors.textOnAccent }]}>{auth.profile.username.slice(0, 1).toUpperCase()}</Text>
+          {(() => {
+            // 渲染优先用 full_name，为空则回退 username
+            const displayName = auth.profile.full_name?.trim() || auth.profile.username;
+            return (
+            <View style={[styles.profileCard, { backgroundColor: colors.surface }]}>
+              <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.avatarText, { color: colors.textOnAccent }]}>{displayName.slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={[styles.username, { color: colors.text }]}>{displayName}</Text>
+                <Text style={[styles.email, { color: colors.textSecondary }]}>{auth.profile.email}</Text>
+              </View>
+              <View style={[styles.statusPill, { backgroundColor: colors.accentSoft }]}>
+                <Text style={[styles.statusPillText, { color: colors.accent }]}>已登录</Text>
+              </View>
             </View>
-            <View style={styles.profileInfo}>
-              <Text style={[styles.username, { color: colors.text }]}>{auth.profile.username}</Text>
-              <Text style={[styles.email, { color: colors.textSecondary }]}>{auth.profile.email}</Text>
-              {auth.profile.full_name ? (
-                <Text style={[styles.email, { color: colors.textSecondary }]}>{auth.profile.full_name}</Text>
-              ) : null}
-            </View>
-            <View style={[styles.statusPill, { backgroundColor: colors.accentSoft }]}>
-              <Text style={[styles.statusPillText, { color: colors.accent }]}>已登录</Text>
-            </View>
-          </View>
+            );
+          })()}
 
           <Section title="偏好">
             <SettingRow label="热量单位" value="kcal" />
@@ -228,9 +232,9 @@ function InlineConfirm({
 
 function errMessage(err: unknown): string {
   const e = err as { statusCode?: number; message?: string };
-  if (e?.statusCode === 401) return "登录失败（401）：账号或密码错误";
-  if (e?.statusCode === 404) return "服务地址不可达（404）：请检查服务地址";
-  return e?.message ?? String(err);
+  if (e?.statusCode === 404) return "服务地址不可达：请检查服务地址";
+  // SDK 已把后端 detail（如"用户名或密码错误""密码必须包含字母…""验证码错误"）映射进 message
+  return e?.message || String(err);
 }
 
 const styles = StyleSheet.create({

@@ -163,6 +163,8 @@ class AppServices {
     email: string;
     password: string;
     code: string;
+    /** 姓名/昵称（可选）；为空传 undefined，后端存 null，渲染时回退 username */
+    fullName?: string;
     userUrl?: string;
     metaUrl?: string;
     chatUrl?: string;
@@ -178,7 +180,9 @@ class AppServices {
         email: params.email,
         password: params.password,
         code: params.code,
-        serviceName: undefined,
+        fullName: params.fullName?.trim() || undefined,
+        // 本应用固定归属 caloplan 服务名（后端 UserCreate.service_name 默认 "default"，这里显式指定）
+        serviceName: "caloplan",
       });
       const profile = await pair.userSdk.users.getMe();
       this.pair = pair;

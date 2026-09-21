@@ -13,7 +13,12 @@ export interface SdkPair {
   metaSdk: MetaSdk;
 }
 
-/** 创建 SDK 对：MetaSDK 自动从 UserSDK 取 token（登录后即生效） */
+/** 创建 SDK 对：MetaSDK 自动从 UserSDK 取 token（登录后即生效）。
+ *  MetaSDK 复用 UserSDK 的 token 管理器：
+ *  - 每个请求前主动续期临期/过期的 access token；
+ *  - 收到 401 时强制刷新一次并用新 token 重试。
+ *  这样挂着页面再回来拉数据时不会因 access token 过期而直接报错。
+ */
 export function createSdkPair(userUrl: string, metaUrl: string): SdkPair {
   const userSdk = new UserSdk({
     baseUrl: userUrl,
@@ -23,6 +28,8 @@ export function createSdkPair(userUrl: string, metaUrl: string): SdkPair {
     baseUrl: metaUrl,
     httpClient: new MetaFetchAdapter(metaUrl),
     tokenProvider: () => userSdk.getToken(),
+    onBeforeRequest: () => userSdk.refreshIfNeeded(),
+    onUnauthorized: () => userSdk.refreshIfNeeded(true),
   });
   return { userSdk, metaSdk };
 }

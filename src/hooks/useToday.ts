@@ -141,8 +141,9 @@ export function useToday(): TodayViewModel {
       const cpUser = appServices.requireCPUser();
       const cpCore = appServices.requireCPCore();
       const today = todayString();
-      // SWR：先渲染缓存（旧数据），再后台刷新覆盖 —— 每次进入无需等待网络
-      const key = `caloplan_today_${today}`;
+      // SWR：key 固定为 caloplan_today（不带日期），只保留当天视图；
+      // 每次进入先渲染缓存，后台 refresh 拉当天数据覆盖，跨天自动更新，不堆积按天 key
+      const key = "caloplan_today";
       const res = await swrLoad<TodayCache>(key, async () => {
         const [bodyRes, goalRes, mealsRes] = await Promise.all([
           cpUser.body.getByDate(today),

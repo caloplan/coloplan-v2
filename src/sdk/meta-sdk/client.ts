@@ -10,17 +10,25 @@ class TokenAuthHttpClient implements HttpClient {
   private http: HttpClient;
   private token: string | null;
   private tokenProvider?: () => string | null | Promise<string | null>;
+  private onBeforeRequest?: () => Promise<void>;
+  private onUnauthorized?: () => Promise<void>;
   private logger: Logger;
 
   constructor(
     http: HttpClient,
     token: string | null,
     tokenProvider: MetaSdkConfig['tokenProvider'],
+    hooks: {
+      onBeforeRequest?: MetaSdkConfig['onBeforeRequest'];
+      onUnauthorized?: MetaSdkConfig['onUnauthorized'];
+    },
     logger: Logger,
   ) {
     this.http = http;
     this.token = token;
     this.tokenProvider = tokenProvider;
+    this.onBeforeRequest = hooks.onBeforeRequest;
+    this.onUnauthorized = hooks.onUnauthorized;
     this.logger = logger;
   }
 
@@ -45,13 +53,36 @@ class TokenAuthHttpClient implements HttpClient {
   }
 
   async request<T>(config: HttpRequestConfig): Promise<HttpResponse<T>> {
-    const token = await this.resolveToken();
+    // 主动续期：发请求前确保 access token 新鲜（临期/过期时静默换新）
+    if (this.onBeforeRequest) {
+      try {
+        await this.onBeforeRequest();
+      } catch (err) {
+        this.logger.error('onBeforeRequest refresh failed:', err);
+      }
+    }
+
+    let token = await this.resolveToken();
     const headers = { ...config.headers };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const resp = await this.http.request<T>({ ...config, headers });
+    let resp = await this.http.request<T>({ ...config, headers });
+
+    // 401：强制刷新一次，换新 token 后重试（仅重试一次，避免死循环）
+    if (resp.status === 401 && this.onUnauthorized) {
+      try {
+        await this.onUnauthorized();
+        token = await this.resolveToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        resp = await this.http.request<T>({ ...config, headers });
+      } catch (err) {
+        throw new AuthError('Token refresh failed', { cause: err as Error });
+      }
+    }
 
     if (resp.status === 401) {
       throw new AuthError('Unauthorized', { statusCode: 401, response: resp.data });
@@ -81,6 +112,10 @@ export class MetaSdk {
       rawHttp,
       config.token ?? null,
       config.tokenProvider,
+      {
+        onBeforeRequest: config.onBeforeRequest,
+        onUnauthorized: config.onUnauthorized,
+      },
       logger,
     );
 
