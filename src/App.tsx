@@ -17,6 +17,8 @@ import { appServices } from "@/services/bootstrap";
 import { useAuth } from "@/hooks/useAuth";
 import { ThemeProvider, useTheme } from "@/theme/ThemeProvider";
 import { spacing, typography } from "@/theme";
+import { useOnboarding, ONBOARDING_STEPS } from "@/hooks/useOnboarding";
+import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 
 function AppInner() {
   const [booted, setBooted] = useState(false);
@@ -24,10 +26,19 @@ function AppInner() {
   const [accountOpen, setAccountOpen] = useState(false);
   const auth = useAuth();
   const { colors } = useTheme();
+  const onboarding = useOnboarding(auth.status === "authenticated");
 
   useEffect(() => {
     void appServices.boot().finally(() => setBooted(true));
   }, []);
+
+  // 引导进行中：每步自动切到对应 tab，让用户看到被讲解的页面
+  useEffect(() => {
+    if (!onboarding.active) return;
+    const step = ONBOARDING_STEPS[onboarding.step];
+    setAccountOpen(false);
+    setTab(step.tab);
+  }, [onboarding.active, onboarding.step]);
 
   const accountLabel =
     auth.status === "authenticated"
@@ -67,6 +78,14 @@ function AppInner() {
         />
       </View>
       <View style={styles.content}>{content}</View>
+      {onboarding.active ? (
+        <OnboardingOverlay
+          stepIndex={onboarding.step}
+          steps={ONBOARDING_STEPS}
+          onNext={onboarding.next}
+          onSkip={onboarding.skip}
+        />
+      ) : null}
     </View>
   );
 }
