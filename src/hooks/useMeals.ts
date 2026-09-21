@@ -2,7 +2,7 @@
  * Meals 页数据 Hook。
  *
  * 业务逻辑全部来自 caloplan-core：
- * - 餐食列表：cpCore.meal.listMine()
+ * - 餐食列表：cpCore.meal.listMine({ date: 当天 })，与 Today 页一致只看当天
  * - 添加食物：createMealFood + changeMealFoods + cpCore.meal.update
  * - 删除 / 改份量：deleteMealFoodById / changeMealFoodAmountById + cpCore.meal.update
  *
@@ -94,9 +94,13 @@ export function useMeals(): MealsViewModel {
     try {
       const cpCore = appServices.requireCPCore();
       // SWR：餐食列表与食物库各自缓存，先渲染旧数据再后台刷新
-      const mealsKey = "caloplan_meals";
+      // 餐食只看当天（created_time 过滤），缓存 key 按天隔离，避免跨天旧数据残留
+      const today = todayString();
+      const mealsKey = `caloplan_meals_${today}`;
       const foodKey = "caloplan_food_library";
-      const mealsRes = await swrLoad<Meal[]>(mealsKey, () => cpCore.meal.listMine());
+      const mealsRes = await swrLoad<Meal[]>(mealsKey, () =>
+        cpCore.meal.listMine({ date: today }),
+      );
       if (mealsRes.cached) {
         setMeals(mealsRes.cached);
         setLoading(false);

@@ -110,6 +110,7 @@ class AppServices {
         pair.userSdk.setToken(stored.access, stored.refresh);
         const profile = await pair.userSdk.users.getMe();
         this.pair = pair;
+        this.registerTokenPersistence(pair);
         this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
         this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
         return;
@@ -147,6 +148,7 @@ class AppServices {
         metaUrl,
         chatUrl,
       });
+      this.registerTokenPersistence(pair);
       this.initBusiness(pair, chatUrl, toUserProfile(profile));
       this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
     } catch (err) {
@@ -160,6 +162,7 @@ class AppServices {
     username: string;
     email: string;
     password: string;
+    code: string;
     userUrl?: string;
     metaUrl?: string;
     chatUrl?: string;
@@ -174,6 +177,7 @@ class AppServices {
         username: params.username,
         email: params.email,
         password: params.password,
+        code: params.code,
         serviceName: undefined,
       });
       const profile = await pair.userSdk.users.getMe();
@@ -185,6 +189,7 @@ class AppServices {
         metaUrl,
         chatUrl,
       });
+      this.registerTokenPersistence(pair);
       this.initBusiness(pair, chatUrl, toUserProfile(profile));
       this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
     } catch (err) {
@@ -192,6 +197,12 @@ class AppServices {
       clearPersistedTokens();
       throw err;
     }
+  }
+
+  /** 发送邮箱验证码（注册场景）；供登录表单「获取验证码」调用 */
+  async sendEmailCode(email: string, scene = "register"): Promise<void> {
+    const pair = this.pair ?? createSdkPair(env.userUrl, env.metaUrl);
+    await pair.userSdk.auth.sendEmailCode({ email, scene });
   }
 
   /* ── 登出 / 注销 ── */
@@ -215,6 +226,22 @@ class AppServices {
 
   /* ── 业务模块注入 ── */
 
+  /** Token 轮换持久化：refresh 后把新 token 写回 localStorage（后端为一次性轮换） */
+  private registerTokenPersistence(pair: SdkPair): void {
+    pair.userSdk.onTokenRefresh(() => {
+      const p = persistedTokens;
+      if (p) {
+        writePersistedTokens({
+          access: pair.userSdk.getToken() ?? "",
+          refresh: pair.userSdk.getRefreshToken() ?? "",
+          userUrl: p.userUrl,
+          metaUrl: p.metaUrl,
+          chatUrl: p.chatUrl,
+        });
+      }
+    });
+  }
+
   private initBusiness(pair: SdkPair, chatUrl: string, profile: UserProfile): void {
     const userIdProvider = () => String(profile.user_id);
 
@@ -226,6 +253,8 @@ class AppServices {
           pair.userSdk.auth.register({ ...p, fullName: p.fullName ?? undefined }),
         refresh: (refreshToken) => pair.userSdk.auth.refresh(refreshToken),
         logout: () => pair.userSdk.auth.logout(),
+        sendEmailCode: (p) => pair.userSdk.auth.sendEmailCode(p),
+        verifyEmailCode: (p) => pair.userSdk.auth.verifyEmailCode(p),
       },
       users: pair.userSdk.users,
     };

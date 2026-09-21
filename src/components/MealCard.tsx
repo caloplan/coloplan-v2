@@ -6,7 +6,8 @@
  * - 编辑态：每行显示份量步进器 + 删除按钮（本地改，不触网）；
  *   顶部显示「完成」「取消」，完成时一次 update 同步所有改动。
  */
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { Meal } from "caloplan-core";
 import { colors as lightColors, radius, spacing, typography } from "@/theme";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -19,6 +20,8 @@ interface MealCardProps {
   title: string;
   /** 是否处于编辑模式 */
   editing: boolean;
+  /** 入场动画错峰序号（列表中第几张卡片），默认 0 */
+  index?: number;
   onAddFood: (meal: Meal) => void;
   /** 长按进入编辑模式 */
   onStartEdit: () => void;
@@ -34,6 +37,7 @@ export function MealCard({
   meal,
   title,
   editing,
+  index = 0,
   onAddFood,
   onStartEdit,
   onSaveEdit,
@@ -44,8 +48,37 @@ export function MealCard({
   // 用 foods 字典的 key 作为 React key（而非 mf.food.id），避免快照 key 与 food.id 不一致时重复
   const foodEntries = Object.entries(meal.foods);
 
+  // 入场动画：淡入 + 上滑，按 index 错峰（每张延迟 70ms）
+  const enterOpacity = useRef(new Animated.Value(0)).current;
+  const enterTranslateY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    const delay = index * 70;
+    Animated.parallel([
+      Animated.timing(enterOpacity, {
+        toValue: 1,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.spring(enterTranslateY, {
+        toValue: 0,
+        delay,
+        friction: 8,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [enterOpacity, enterTranslateY, index]);
+
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface }, editing && { borderColor: colors.accent, borderWidth: 1.5 }]}>
+    <Animated.View
+      style={[
+        styles.card,
+        { backgroundColor: colors.surface },
+        editing && { borderColor: colors.accent, borderWidth: 1.5 },
+        { opacity: enterOpacity, transform: [{ translateY: enterTranslateY }] },
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
@@ -110,7 +143,7 @@ export function MealCard({
           />
         ))
       )}
-    </View>
+    </Animated.View>
   );
 }
 

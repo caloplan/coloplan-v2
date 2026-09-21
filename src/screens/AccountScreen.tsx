@@ -43,6 +43,7 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
           username: fields.username,
           email: fields.email,
           password: fields.password,
+          code: fields.code,
           userUrl: fields.userUrl,
           metaUrl: fields.metaUrl,
           chatUrl: fields.chatUrl,
@@ -168,7 +169,12 @@ export function AccountScreen({ onBack }: AccountScreenProps) {
             登录后通过 caloplan-user / caloplan-core / caloplan-chat 读写真实数据；
             未登录时页面展示 Demo 数据。
           </Text>
-          <LoginForm busy={busy} error={error} onSubmit={submit} />
+          <LoginForm
+            busy={busy}
+            error={error}
+            onSubmit={submit}
+            onSendCode={(email) => appServices.sendEmailCode(email, "register")}
+          />
         </>
       )}
     </Screen>

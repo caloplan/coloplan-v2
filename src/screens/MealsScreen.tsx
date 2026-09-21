@@ -73,35 +73,40 @@ export function MealsScreen({ onNavigate }: MealsScreenProps) {
           </TouchableOpacity>
         </View>
       ) : (
-        view.groups.map(
-          (group) =>
-            group.meals.length > 0 && (
-              <View key={group.type} style={styles.group}>
-                <Text style={[styles.groupTitle, { color: colors.text }]}>
-                  {group.title}
-                  <Text style={[styles.groupCount, { color: colors.textTertiary }]}>
-                    {"  "}
-                    {group.meals.reduce((sum, m) => sum + Object.keys(m.foods).length, 0)} 项食物
+        (() => {
+          // 入场动画错峰序号：跨分组连续递增，保证整张列表依次入场
+          let cardIndex = 0;
+          return view.groups.map(
+            (group) =>
+              group.meals.length > 0 && (
+                <View key={group.type} style={styles.group}>
+                  <Text style={[styles.groupTitle, { color: colors.text }]}>
+                    {group.title}
+                    <Text style={[styles.groupCount, { color: colors.textTertiary }]}>
+                      {"  "}
+                      {group.meals.reduce((sum, m) => sum + Object.keys(m.foods).length, 0)} 项食物
+                    </Text>
                   </Text>
-                </Text>
-                {group.meals.map((meal) => (
-                  <MealCard
-                    key={meal.id}
-                    meal={meal}
-                    title={group.title}
-                    editing={view.editingMealId === meal.id}
-                    onAddFood={setTargetMeal}
-                    onStartEdit={() => view.startEdit(meal.id)}
-                    onSaveEdit={() => void view.saveEdit(meal.id)}
-                    onCancelEdit={() => view.cancelEdit(meal.id)}
-                    onChangeAmountDraft={(foodId, amount) =>
-                      view.changeFoodAmountDraft(meal.id, foodId, amount)
-                    }
-                  />
-                ))}
-              </View>
-            ),
-        )
+                  {group.meals.map((meal) => (
+                    <MealCard
+                      key={meal.id}
+                      meal={meal}
+                      title={group.title}
+                      index={cardIndex++}
+                      editing={view.editingMealId === meal.id}
+                      onAddFood={setTargetMeal}
+                      onStartEdit={() => view.startEdit(meal.id)}
+                      onSaveEdit={() => void view.saveEdit(meal.id)}
+                      onCancelEdit={() => view.cancelEdit(meal.id)}
+                      onChangeAmountDraft={(foodId, amount) =>
+                        view.changeFoodAmountDraft(meal.id, foodId, amount)
+                      }
+                    />
+                  ))}
+                </View>
+              ),
+          );
+        })()
       )}
 
       {/* 添加食物弹层（向已有餐食补充食物，不新建餐食） */}

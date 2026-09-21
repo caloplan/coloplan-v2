@@ -1,8 +1,9 @@
 /**
  * 登录 / 注册表单（Account 页）。
+ * 注册模式需要邮箱验证码：先「获取验证码」（60s 冷却），再填写验证码。
  * 服务地址默认取 env，可展开修改（连接远程服务 / 本地服务）。
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -20,6 +21,7 @@ export interface LoginFields {
   username: string;
   password: string;
   email: string;
+  code: string;
   userUrl: string;
   metaUrl: string;
   chatUrl: string;
@@ -29,25 +31,73 @@ interface LoginFormProps {
   busy?: boolean;
   error?: string | null;
   onSubmit: (mode: "login" | "register", fields: LoginFields) => void;
+  /** 发送邮箱验证码（注册模式使用）；由上层注入真实调用 */
+  onSendCode?: (email: string) => Promise<void>;
 }
 
-export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
+/** 验证码重发冷却（秒） */
+const CODE_COOLDOWN_SECONDS = 60;
+
+function errMessage(err: unknown): string {
+  const e = err as { statusCode?: number; message?: string };
+  if (e?.statusCode === 429) return "发送过于频繁，请稍后再试";
+  return e?.message ?? String(err);
+}
+
+export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps) {
   const { colors } = useTheme();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [userUrl, setUserUrl] = useState(env.userUrl);
   const [metaUrl, setMetaUrl] = useState(env.metaUrl);
   const [chatUrl, setChatUrl] = useState(env.chatUrl);
   const [showUrls, setShowUrls] = useState(false);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codeSent, setCodeSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   const canSubmit =
-    username.trim().length > 0 && password.length > 0 && (mode === "login" || email.trim().length > 0);
+    username.trim().length > 0 &&
+    password.length > 0 &&
+    (mode === "login" || (email.trim().length > 0 && code.trim().length > 0));
+
+  const sendCode = async () => {
+    if (codeBusy || cooldown > 0 || !email.trim()) return;
+    setCodeBusy(true);
+    setCodeError(null);
+    try {
+      await onSendCode?.(email.trim());
+      setCodeSent(true);
+      setCooldown(CODE_COOLDOWN_SECONDS);
+    } catch (err) {
+      setCodeSent(false);
+      setCodeError(errMessage(err));
+    } finally {
+      setCodeBusy(false);
+    }
+  };
 
   const submit = () => {
     if (!canSubmit || busy) return;
-    onSubmit(mode, { username: username.trim(), password, email: email.trim(), userUrl, metaUrl, chatUrl });
+    onSubmit(mode, {
+      username: username.trim(),
+      password,
+      email: email.trim(),
+      code: code.trim(),
+      userUrl,
+      metaUrl,
+      chatUrl,
+    });
   };
 
   return (
@@ -73,7 +123,35 @@ export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
 
         <Field label="用户名" value={username} onChangeText={setUsername} placeholder="demo" autoCapitalize="none" />
         {mode === "register" ? (
-          <Field label="邮箱" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
+          <>
+            <Field label="邮箱" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
+            <View style={styles.codeRow}>
+              <View style={styles.codeInputWrap}>
+                <Field
+                  label="邮箱验证码"
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="6 位数字"
+                  autoCapitalize="none"
+                  keyboardType="default"
+                />
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.codeBtn,
+                  { backgroundColor: codeBusy || cooldown > 0 ? colors.surfaceMuted : colors.accentSoft },
+                ]}
+                onPress={() => void sendCode()}
+                disabled={codeBusy || cooldown > 0 || !email.trim()}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.codeBtnText, { color: codeBusy || cooldown > 0 ? colors.textTertiary : colors.accent }]}>
+                  {codeBusy ? "发送中…" : cooldown > 0 ? `${cooldown}s` : codeSent ? "重新获取" : "获取验证码"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {codeError ? <Text style={[styles.codeError, { color: colors.danger }]}>{codeError}</Text> : null}
+          </>
         ) : null}
         <Field label="密码" value={password} onChangeText={setPassword} placeholder="••••••••" secureTextEntry />
 
@@ -102,7 +180,7 @@ export function LoginForm({ busy, error, onSubmit }: LoginFormProps) {
         </TouchableOpacity>
 
         <Text style={[styles.hint, { color: colors.textTertiary }]}>
-          登录后数据经由 caloplan-user / caloplan-core / caloplan-chat 模块读写；未登录时展示 Demo 数据。
+          注册需先获取邮箱验证码；登录后数据经由 caloplan-user / caloplan-core / caloplan-chat 模块读写；未登录时展示 Demo 数据。
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -168,6 +246,29 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     ...typography.body,
+  },
+  codeRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.sm,
+  },
+  codeInputWrap: {
+    flex: 1,
+  },
+  codeBtn: {
+    height: 42,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 0,
+  },
+  codeBtnText: {
+    ...typography.caption,
+    fontWeight: "600",
+  },
+  codeError: {
+    ...typography.bodySmall,
   },
   urlsToggle: {
     alignSelf: "flex-start",

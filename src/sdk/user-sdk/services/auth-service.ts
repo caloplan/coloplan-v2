@@ -1,7 +1,14 @@
 import { HttpClient } from '../http/http-client.js';
 import { TokenManager } from '../auth/token-manager.js';
 import { TokenPair } from '../types/common.js';
-import { RegisterParams, LoginParams } from '../types/auth.js';
+import {
+  EmailCodeResponse,
+  EmailVerifyResponse,
+  RegisterParams,
+  LoginParams,
+  SendEmailCodeParams,
+  VerifyEmailCodeParams,
+} from '../types/auth.js';
 import { camelToSnake, snakeToCamel } from '../utils/case-convert.js';
 
 export class AuthService {
@@ -25,6 +32,26 @@ export class AuthService {
     const tokens = snakeToCamel<TokenPair>(resp.data);
     this.tokenManager.setToken(tokens.accessToken, tokens.refreshToken);
     return tokens;
+  }
+
+  async sendEmailCode(params: SendEmailCodeParams): Promise<EmailCodeResponse> {
+    const body = camelToSnake<Record<string, unknown>>(params);
+    const resp = await this.http.request<Record<string, unknown>>({
+      method: 'POST',
+      url: '/api/v1/auth/email/code',
+      data: body,
+    });
+    return snakeToCamel<EmailCodeResponse>(resp.data);
+  }
+
+  async verifyEmailCode(params: VerifyEmailCodeParams): Promise<EmailVerifyResponse> {
+    const body = camelToSnake<Record<string, unknown>>(params);
+    const resp = await this.http.request<Record<string, unknown>>({
+      method: 'POST',
+      url: '/api/v1/auth/email/verify',
+      data: body,
+    });
+    return snakeToCamel<EmailVerifyResponse>(resp.data);
   }
 
   async login(params: LoginParams): Promise<TokenPair> {
