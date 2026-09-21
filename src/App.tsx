@@ -30,7 +30,9 @@ function AppInner() {
   }, []);
 
   const accountLabel =
-    auth.status === "authenticated" ? auth.profile?.username ?? "U" : "客";
+    auth.status === "authenticated"
+      ? (auth.profile?.full_name?.trim() || auth.profile?.username || "U")
+      : "客";
 
   const navigate = (next: MainTab) => {
     setTab(next);

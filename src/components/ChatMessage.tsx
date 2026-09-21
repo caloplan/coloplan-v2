@@ -6,7 +6,7 @@
  * assistant 消息使用 react-markdown + remark-gfm 渲染（代码块/列表/加粗等），
  * user 消息恒为纯文本。流式输出时在内容尾部显示光标 ▍。
  */
-import { Children, useEffect, useRef, useState } from "react";
+import { Children, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Animated, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import ReactMarkdown from "react-markdown";
@@ -91,6 +91,48 @@ function wrapTextNodes(children: ReactNode, colors: ReturnType<typeof useTheme>[
   });
 }
 
+/**
+ * 流式等待中的三点跳动动画（assistant 首字未到时的 loading）。
+ * 三个点依次淡入淡出，形成"正在输入"的视觉反馈。
+ */
+function TypingDots({ colors }: { colors: ReturnType<typeof useTheme>["colors"] }) {
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const make = (v: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(v, { toValue: 1, duration: 320, delay, useNativeDriver: true }),
+          Animated.timing(v, { toValue: 0.3, duration: 320, useNativeDriver: true }),
+        ]),
+      );
+    const a = make(dot1, 0);
+    const b = make(dot2, 200);
+    const c = make(dot3, 400);
+    a.start();
+    b.start();
+    c.start();
+    return () => {
+      a.stop();
+      b.stop();
+      c.stop();
+    };
+  }, [dot1, dot2, dot3]);
+
+  return (
+    <View style={styles.typingRow}>
+      {[dot1, dot2, dot3].map((opacity, i) => (
+        <Animated.View
+          key={i}
+          style={[styles.typingDot, { backgroundColor: colors.accent, opacity }]}
+        />
+      ))}
+    </View>
+  );
+}
+
 export function ChatMessage({ message }: ChatMessageProps) {
   const { colors } = useTheme();
   const isUser = message.role === "user";
@@ -118,6 +160,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
           .join(" ")
           .trim();
 
+  // assistant 文本为空但带工具调用时，尝试把工具结果文本展示出来（替代突兀的"（空）"）
+  const toolResultText = useMemo(() => {
+    if (isUser || text.length > 0) return "";
+    const results = (message.toolCalls ?? [])
+      .map((t) => (typeof t.result === "string" ? t.result.trim() : ""))
+      .filter(Boolean);
+    return results.join("\n\n");
+  }, [isUser, text, message.toolCalls]);
+
   const timeLabel = new Date(message.createdAt).toLocaleTimeString("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -144,10 +195,17 @@ export function ChatMessage({ message }: ChatMessageProps) {
         </View>
       );
     }
+    // assistant 无文本：
+    // - 流式中：三点跳动 loading
+    // - 已完成：优先展示工具结果文本；否则低调"已完成"，不再显示突兀的"（空）"
+    if (isStreaming) {
+      return <TypingDots colors={colors} />;
+    }
+    if (toolResultText) {
+      return <MarkdownText text={toolResultText} colors={colors} />;
+    }
     return (
-      <Text style={[styles.text, { color: colors.chatAssistantText }]}>
-        {isStreaming ? "思考中▍" : "（空）"}
-      </Text>
+      <Text style={[styles.emptyDone, { color: colors.textTertiary }]}>已完成</Text>
     );
   };
 
@@ -294,6 +352,20 @@ const styles = StyleSheet.create({
   },
   textUser: {
     color: "#fff",
+  },
+  emptyDone: {
+    ...typography.caption,
+  },
+  typingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 2,
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   cursor: {
     color: "rgba(255,255,255,0.9)",
