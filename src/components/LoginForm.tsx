@@ -4,7 +4,7 @@
  * 服务地址默认取 env，可展开修改（连接远程服务 / 本地服务）。
  */
 import { createElement, useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent as ReactFormEvent } from "react";
 import {
   StyleSheet,
   Text,
@@ -120,8 +120,15 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
     });
   };
 
-  return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+  // Web（iOS Safari / Chrome）：包一层真实 <form>，键盘回车即提交，
+  // 浏览器才能识别为登录表单并弹出密码自动填充 / 保存密码提示。
+  const isWeb = Platform.OS === "web";
+  const handleFormSubmit = (e: ReactFormEvent) => {
+    e.preventDefault();
+    submit();
+  };
+
+  const card = (
       <View style={[styles.card, { backgroundColor: colors.surface }]}>
         <View style={[styles.modeRow, { backgroundColor: colors.surfaceMuted }]}>
           {(["login", "register"] as const).map((m) => {
@@ -141,11 +148,11 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
           })}
         </View>
 
-        <Field label="用户名" value={username} onChangeText={setUsername} placeholder="demo" autoCapitalize="none" />
+        <Field label="用户名" value={username} onChangeText={setUsername} placeholder="demo" autoCapitalize="none" autoComplete="username" textContentType="username" returnKeyType="next" />
         {mode === "register" ? (
           <>
             <Field label="姓名/昵称（可选）" value={fullName} onChangeText={setFullName} placeholder="怎么称呼你" maxLength={100} />
-            <Field label="邮箱" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" />
+            <Field label="邮箱" value={email} onChangeText={setEmail} placeholder="you@example.com" autoCapitalize="none" keyboardType="email-address" autoComplete="email" textContentType="emailAddress" />
             <View style={styles.codeRow}>
               <View style={styles.codeInputWrap}>
                 <Field
@@ -155,6 +162,8 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
                   placeholder="6 位数字"
                   autoCapitalize="none"
                   keyboardType="default"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
                 />
               </View>
               <TouchableOpacity
@@ -187,6 +196,9 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              textContentType={mode === "login" ? "password" : "newPassword"}
+              returnKeyType="go"
             />
             <TouchableOpacity
               onPress={() => setShowPassword((v) => !v)}
@@ -260,6 +272,17 @@ export function LoginForm({ busy, error, onSubmit, onSendCode }: LoginFormProps)
           注册需先获取邮箱验证码；登录后数据经由 caloplan-user / caloplan-core / caloplan-chat 模块读写；未登录时展示 Demo 数据。
         </Text>
       </View>
+  );
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {isWeb
+        ? createElement(
+            "form",
+            { onSubmit: handleFormSubmit, style: { width: "100%", display: "block", margin: 0 } },
+            card,
+          )
+        : card}
     </KeyboardAvoidingView>
   );
 }
@@ -284,6 +307,9 @@ function Field(props: {
   autoCapitalize?: "none" | "sentences";
   keyboardType?: "email-address" | "default";
   maxLength?: number;
+  autoComplete?: "username" | "email" | "one-time-code" | "off";
+  textContentType?: "username" | "emailAddress" | "oneTimeCode";
+  returnKeyType?: "next" | "go" | "done";
 }) {
   const { colors } = useTheme();
   return (
@@ -300,6 +326,9 @@ function Field(props: {
         keyboardType={props.keyboardType}
         maxLength={props.maxLength}
         autoCorrect={false}
+        autoComplete={props.autoComplete}
+        textContentType={props.textContentType}
+        returnKeyType={props.returnKeyType}
       />
     </View>
   );

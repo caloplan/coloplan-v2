@@ -112,12 +112,16 @@ class AppServices {
   async boot(): Promise<void> {
     const stored = await readPersistedTokens();
     if (stored?.access) {
+      // 关键：把 localStorage 里读到的 token 回填到模块级 persistedTokens，
+      // 否则后续 onTokenRefresh 回调里 `if (p = persistedTokens)` 判断为 null，
+      // 刷新后的新 refresh_token 永远不会写回磁盘 —— 表现为"刷新页面就要重新登录"。
+      persistedTokens = stored;
+      const pair = createSdkPair(env.userUrl, env.metaUrl);
+      pair.userSdk.setToken(stored.access, stored.refresh);
       try {
         // 服务地址一律以 .env（env.*）为准，持久化仅保留 token：
         // 修改 .env 切换环境后，已登录用户刷新页面即生效，无需重新登录。
-        const pair = createSdkPair(env.userUrl, env.metaUrl);
-        pair.userSdk.setToken(stored.access, stored.refresh);
-        const profile = await pair.userSdk.users.getMe();
+        const profile = await this.validateProfile(pair);
         this.pair = pair;
         this.registerTokenPersistence(pair);
         this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
@@ -127,16 +131,51 @@ class AppServices {
         // 仅当确定令牌已失效（401/403 鉴权失败）时才清理持久化 token；
         // 网络不可达 / 请求超时等瞬态错误必须保留 token：移动端（尤其 iOS）
         // 切后台恢复时页面常被重载且网络未就绪，若误清 token 就会"动不动要重新登录"。
-        // 保留 token 后本次会话回退匿名，下次启动（网络恢复）自动恢复登录。
         if (isAuthFailure(err)) {
           clearPersistedTokens();
         } else {
-          console.warn("[auth] boot 校验失败但非鉴权错误，保留持久化 token，本次回退匿名", err);
+          console.warn("[auth] boot 校验失败但非鉴权错误，保留 token，本次回退匿名", err);
+          // 保留带 token 的 pair（而不是换成空 pair）：本次会话请求仍带 token，
+          // 网络恢复后可自动续期；同时后台静默重试一次，成功即恢复登录态。
+          this.pair = pair;
+          this.setAuth({ status: "anonymous", profile: null });
+          void this.recoverInBackground(pair);
+          return;
         }
       }
     }
     this.pair = createSdkPair(env.userUrl, env.metaUrl);
     this.setAuth({ status: "anonymous", profile: null });
+  }
+
+  /** boot 校验 getMe：非鉴权错误（网络未就绪 / 超时）时重试一次，避免 iOS 冷启动误判未登录 */
+  private async validateProfile(pair: SdkPair, attempts = 2): Promise<UserInfo> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await pair.userSdk.users.getMe();
+      } catch (err) {
+        lastErr = err;
+        if (isAuthFailure(err)) throw err;
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+    throw lastErr;
+  }
+
+  /** 后台静默恢复登录态：延迟重试 getMe，成功则切换为已登录；期间用户若手动登录则放弃 */
+  private async recoverInBackground(pair: SdkPair): Promise<void> {
+    try {
+      await new Promise((r) => setTimeout(r, 1500));
+      if (this.pair !== pair) return;
+      const profile = await pair.userSdk.users.getMe();
+      if (this.pair !== pair) return;
+      this.registerTokenPersistence(pair);
+      this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
+      this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
+    } catch {
+      // 保持匿名，等下次启动 / 用户操作时再试
+    }
   }
 
   /* ── 登录 / 注册 ── */
