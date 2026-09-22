@@ -213,20 +213,15 @@ function SettingRow({ label, value, last }: { label: string; value: string; last
 /**
  * Token 用量区块：当前用户 LLM Token 使用快照 / 配额 / 剩余额度。
  * 数据经 caloplan-token（client 只读）→ fastapi-chat-service 门户转发获取，
- * 缓存优先（SWR）+ 后台静默刷新；数值变化用 AnimatedNumber 动态呈现。
+ * 缓存优先（SWR）+ 后台静默刷新；先渲染结构与占位（不等数据），
+ * 数值到达 / 更新时由 AnimatedNumber 做与今日营养摄入条一致的淡入淡出动画，
+ * 进度条由 ProgressBar 从 0 平滑增长。
  */
 function TokenUsageSection() {
   const token = useToken();
   const { colors } = useTheme();
 
-  if (token.loading && !token.remaining) {
-    return (
-      <Section title="Token 用量">
-        <SettingRow label="加载中" value="…" last />
-      </Section>
-    );
-  }
-
+  // 仅当既无快照、又出错时才展示错误重试行；有快照或首次加载都照常渲染占位骨架
   if (token.error && !token.remaining) {
     return (
       <Section title="Token 用量">
@@ -243,17 +238,10 @@ function TokenUsageSection() {
     );
   }
 
-  if (!token.remaining) {
-    return (
-      <Section title="Token 用量">
-        <SettingRow label="暂无数据" value="—" last />
-      </Section>
-    );
-  }
-
   const fmt = (n: number) => n.toLocaleString("zh-CN");
   const { remaining, usage, quota } = token;
-  const dailyRatio = remaining.dailyLimit > 0 ? remaining.dailyUsed / remaining.dailyLimit : 0;
+  const dailyRatio =
+    remaining && remaining.dailyLimit > 0 ? remaining.dailyUsed / remaining.dailyLimit : 0;
   const monthLimit = quota?.monthlyLimit ?? null;
   const monthRatio =
     usage && monthLimit && monthLimit > 0 ? usage.monthTotalTokens / monthLimit : 0;
@@ -264,16 +252,20 @@ function TokenUsageSection() {
         <View style={styles.tokenQuotaHead}>
           <Text style={[styles.tokenQuotaLabel, { color: colors.textSecondary }]}>今日配额</Text>
           <AnimatedNumber
-            value={`${fmt(remaining.dailyUsed)} / ${fmt(remaining.dailyLimit)}`}
+            value={
+              remaining
+                ? `${fmt(remaining.dailyUsed)} / ${fmt(remaining.dailyLimit)}`
+                : "— / —"
+            }
             style={[styles.tokenQuotaValue, { color: colors.textTertiary }]}
           />
         </View>
         <ProgressBar ratio={dailyRatio} color={colors.accent} height={8} />
       </View>
 
-      <TokenRow label="今日已用" value={`${fmt(remaining.dailyUsed)} tokens`} />
-      <TokenRow label="今日剩余" value={`${fmt(remaining.dailyRemaining)} tokens`} />
-      <TokenRow label="单次上限" value={`${fmt(remaining.perRequestLimit)} tokens`} />
+      <TokenRow label="今日已用" value={remaining ? `${fmt(remaining.dailyUsed)} tokens` : "—"} />
+      <TokenRow label="今日剩余" value={remaining ? `${fmt(remaining.dailyRemaining)} tokens` : "—"} />
+      <TokenRow label="单次上限" value={remaining ? `${fmt(remaining.perRequestLimit)} tokens` : "—"} />
 
       {monthLimit && usage ? (
         <View style={styles.tokenQuotaBlock}>

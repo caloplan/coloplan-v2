@@ -61,6 +61,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const colors = theme === "dark" ? darkColors : lightColors;
 
+  // 主题切换时：同步根背景 CSS 变量（消除深色主题下边缘浅色缝）+ 手机状态栏/浏览器栏 theme-color
+  useEffect(() => {
+    document.documentElement.style.setProperty("--app-bg", colors.bg);
+    document.documentElement.style.setProperty("color-scheme", theme);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", colors.bg);
+  }, [colors.bg, theme]);
+
   const value = useMemo<ThemeContextValue>(
     () => ({ theme, colors, toggleTheme, setTheme }),
     [theme, colors, toggleTheme, setTheme],

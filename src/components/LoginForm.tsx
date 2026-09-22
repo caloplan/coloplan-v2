@@ -3,7 +3,8 @@
  * 注册模式需要邮箱验证码：先「获取验证码」（60s 冷却），再填写验证码。
  * 服务地址默认取 env，可展开修改（连接远程服务 / 本地服务）。
  */
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import {
   StyleSheet,
   Text,

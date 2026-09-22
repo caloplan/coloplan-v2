@@ -127,6 +127,8 @@ const styles = StyleSheet.create({
   },
   header: {
     borderBottomWidth: StyleSheet.hairlineWidth,
+    // 刘海 / 状态栏安全区：viewport-fit=cover 下内容不顶到顶部状态栏
+    paddingTop: "env(safe-area-inset-top)",
   },
   content: {
     flex: 1,

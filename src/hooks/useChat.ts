@@ -47,6 +47,11 @@ function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/** 额度用尽是否应作为友好气泡展示（而非顶部错误条） */
+function isQuotaError(err: unknown): boolean {
+  return isChatError(err) && err.kind === "quota";
+}
+
 export interface ChatViewModel {
   initLoading: boolean;
   isDemo: boolean;
@@ -128,6 +133,33 @@ export function useChat(): ChatViewModel {
       setSessions(snapshotSessions(provider.sessions.list()));
     },
     [],
+  );
+
+  /**
+   * 额度用尽兜底：把后端友好文案作为一条 assistant 气泡展示（乐观追加到当前会话 state）。
+   * 仅用于 SDK 抛 kind=quota 的路径（confirm / cancel，或旧版 SDK 的 send 防御）；
+   * 新版 SDK 的 sendMessage 已在内部把友好回复写回 cache 并产出 quota_exceeded 事件，
+   * 正常结束路径的 refreshSessions 会自动取到，无需走到这里。
+   */
+  const appendQuotaBubble = useCallback(
+    (text: string) => {
+      if (!activeSessionId) return;
+      const bubble: ChatSession["messages"][number] = {
+        id: `quota_${Date.now()}`,
+        role: "assistant",
+        content: text,
+        status: "completed",
+        createdAt: Date.now(),
+      };
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === activeSessionId
+            ? { ...s, messages: [...s.messages, bubble], updatedAt: Date.now() }
+            : s,
+        ),
+      );
+    },
+    [activeSessionId],
   );
 
   const createSession = useCallback(async () => {
@@ -218,6 +250,12 @@ export function useChat(): ChatViewModel {
         }
         refreshSessions(provider);
       } catch (err) {
+        // 额度用尽：以友好气泡呈现（新版 SDK 已写回 cache 并正常结束，此处仅兜底），
+        // 不再刷新（乐观气泡在当前 state，刷新会被 cache 覆盖）
+        if (isQuotaError(err)) {
+          appendQuotaBubble(errMessage(err));
+          return;
+        }
         setError(errMessage(err));
         refreshSessions(currentProvider());
       } finally {
@@ -234,9 +272,14 @@ export function useChat(): ChatViewModel {
       await provider.confirm(pendingAction.taskid);
       refreshSessions(provider);
     } catch (err) {
+      // 审批确认时额度用尽：友好气泡展示（taskid 未被消费，卡片保留可重试）
+      if (isQuotaError(err)) {
+        appendQuotaBubble(errMessage(err));
+        return;
+      }
       setError(errMessage(err));
     }
-  }, [pendingAction, currentProvider, refreshSessions]);
+  }, [pendingAction, currentProvider, refreshSessions, appendQuotaBubble]);
 
   const cancel = useCallback(async () => {
     if (!pendingAction) return;
@@ -245,9 +288,13 @@ export function useChat(): ChatViewModel {
       await provider.cancel(pendingAction.taskid);
       refreshSessions(provider);
     } catch (err) {
+      if (isQuotaError(err)) {
+        appendQuotaBubble(errMessage(err));
+        return;
+      }
       setError(errMessage(err));
     }
-  }, [pendingAction, currentProvider, refreshSessions]);
+  }, [pendingAction, currentProvider, refreshSessions, appendQuotaBubble]);
 
   const clearError = useCallback(() => setError(null), []);
 

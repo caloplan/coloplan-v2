@@ -16,7 +16,15 @@ import { createCPToken, getCPToken } from "caloplan-token";
 import { createSdkPair } from "./sdk";
 import type { SdkPair } from "./sdk";
 import { env } from "./env";
+import { AuthError } from "@/sdk/user-sdk/index.js";
 import type { UserInfo } from "@/sdk/user-sdk/index.js";
+
+/** 判断是否为"令牌确实失效"的鉴权失败（401/403）；网络错误等瞬态异常不算 */
+function isAuthFailure(err: unknown): boolean {
+  if (err instanceof AuthError) return true;
+  const e = err as { statusCode?: number } | null | undefined;
+  return e?.statusCode === 401 || e?.statusCode === 403;
+}
 
 /** SDK 契约（camelCase）→ caloplan-user 领域模型（snake_case） */
 function toUserProfile(u: UserInfo): UserProfile {
@@ -115,9 +123,16 @@ class AppServices {
         this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
         this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
         return;
-      } catch {
-        // Token 失效 / 服务不可达：清理持久化，回退匿名态
-        clearPersistedTokens();
+      } catch (err) {
+        // 仅当确定令牌已失效（401/403 鉴权失败）时才清理持久化 token；
+        // 网络不可达 / 请求超时等瞬态错误必须保留 token：移动端（尤其 iOS）
+        // 切后台恢复时页面常被重载且网络未就绪，若误清 token 就会"动不动要重新登录"。
+        // 保留 token 后本次会话回退匿名，下次启动（网络恢复）自动恢复登录。
+        if (isAuthFailure(err)) {
+          clearPersistedTokens();
+        } else {
+          console.warn("[auth] boot 校验失败但非鉴权错误，保留持久化 token，本次回退匿名", err);
+        }
       }
     }
     this.pair = createSdkPair(env.userUrl, env.metaUrl);
@@ -236,12 +251,14 @@ class AppServices {
     pair.userSdk.onTokenRefresh(() => {
       const p = persistedTokens;
       if (p) {
-        writePersistedTokens({
+        void writePersistedTokens({
           access: pair.userSdk.getToken() ?? "",
           refresh: pair.userSdk.getRefreshToken() ?? "",
           userUrl: p.userUrl,
           metaUrl: p.metaUrl,
           chatUrl: p.chatUrl,
+        }).catch((err) => {
+          console.warn("[auth] 刷新后 token 持久化失败（localStorage 不可用？）", err);
         });
       }
     });

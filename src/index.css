@@ -19,11 +19,14 @@ body,
   padding: 0;
   width: 100%;
   height: 100%;
-  background: #f6f6f4;
+  /* 背景跟随主题（--app-bg 由 ThemeProvider 注入），避免深色主题下边缘缝隙透出浅色 */
+  background: var(--app-bg, #f6f6f4);
 }
 
 #root {
   min-height: 100vh;
+  /* dvh：手机地址栏 / 键盘弹起时动态视口高度，避免页面底部留白 */
+  min-height: 100dvh;
 }
 
 #root {
