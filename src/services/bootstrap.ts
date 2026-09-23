@@ -109,7 +109,20 @@ class AppServices {
 
   /* ── 启动：恢复持久化登录态；失败则匿名（demo 模式） ── */
 
-  async boot(): Promise<void> {
+  /**
+   * boot 单飞锁：React StrictMode（开发环境）会让挂载 effect 执行两次，
+   * 复用同一个 Promise，避免重复创建 SDK / 重复注册监听 / 两次 refresh 互相覆盖。
+   * boot 是一次性生命周期，已完成的 Promise 保留不清，第二次调用直接复用结果。
+   */
+  private bootPromise: Promise<void> | null = null;
+
+  boot(): Promise<void> {
+    if (this.bootPromise) return this.bootPromise;
+    this.bootPromise = this.doBoot();
+    return this.bootPromise;
+  }
+
+  private async doBoot(): Promise<void> {
     const stored = await readPersistedTokens();
     if (stored?.access) {
       // 关键：把 localStorage 里读到的 token 回填到模块级 persistedTokens，
@@ -118,12 +131,24 @@ class AppServices {
       persistedTokens = stored;
       const pair = createSdkPair(env.userUrl, env.metaUrl);
       pair.userSdk.setToken(stored.access, stored.refresh);
+      // 关键：必须在任何可能触发 refresh 的请求（getMe）之前注册持久化监听。
+      // 否则启动时 access 进入 60s 刷新窗口，getMe 内自动 refresh 拿到 RT2，
+      // 但 onTokenRefresh 尚未注册 → RT2 不落盘 → 刷新页面读到已作废的 RT1 → 掉登录。
+      this.registerTokenPersistence(pair);
       try {
         // 服务地址一律以 .env（env.*）为准，持久化仅保留 token：
         // 修改 .env 切换环境后，已登录用户刷新页面即生效，无需重新登录。
         const profile = await this.validateProfile(pair);
         this.pair = pair;
-        this.registerTokenPersistence(pair);
+        // 启动过程中可能已发生一次 refresh：校验成功后再写一次，
+        // 保证磁盘与内存一致（磁盘上必须是最新 RT，不能是已被轮换废弃的旧 RT）。
+        await writePersistedTokens({
+          access: pair.userSdk.getToken() ?? "",
+          refresh: pair.userSdk.getRefreshToken() ?? "",
+          userUrl: persistedTokens?.userUrl ?? env.userUrl,
+          metaUrl: persistedTokens?.metaUrl ?? env.metaUrl,
+          chatUrl: persistedTokens?.chatUrl ?? env.chatUrl,
+        });
         this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
         this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
         return;
@@ -134,11 +159,11 @@ class AppServices {
         if (isAuthFailure(err)) {
           clearPersistedTokens();
         } else {
-          console.warn("[auth] boot 校验失败但非鉴权错误，保留 token，本次回退匿名", err);
-          // 保留带 token 的 pair（而不是换成空 pair）：本次会话请求仍带 token，
-          // 网络恢复后可自动续期；同时后台静默重试一次，成功即恢复登录态。
+          console.warn("[auth] boot 校验失败但非鉴权错误，保留 token，后台恢复", err);
+          // 保留带 token 的 pair，且不切 anonymous（保持 unknown loading）：
+          // 用户看到"正在恢复登录态…"而不是直接弹登录表单。
+          // 后台带退避重试，成功即切 authenticated；重试耗尽才落 anonymous。
           this.pair = pair;
-          this.setAuth({ status: "anonymous", profile: null });
           void this.recoverInBackground(pair);
           return;
         }
@@ -148,8 +173,8 @@ class AppServices {
     this.setAuth({ status: "anonymous", profile: null });
   }
 
-  /** boot 校验 getMe：非鉴权错误（网络未就绪 / 超时）时重试一次，避免 iOS 冷启动误判未登录 */
-  private async validateProfile(pair: SdkPair, attempts = 2): Promise<UserInfo> {
+  /** boot 校验 getMe：非鉴权错误（网络未就绪 / 超时）时退避重试，避免 iOS 冷启动误判未登录 */
+  private async validateProfile(pair: SdkPair, attempts = 3): Promise<UserInfo> {
     let lastErr: unknown;
     for (let i = 0; i < attempts; i++) {
       try {
@@ -157,24 +182,47 @@ class AppServices {
       } catch (err) {
         lastErr = err;
         if (isAuthFailure(err)) throw err;
-        if (i < attempts - 1) await new Promise((r) => setTimeout(r, 600));
+        if (i < attempts - 1) await new Promise((r) => setTimeout(r, 600 * (i + 1)));
       }
     }
     throw lastErr;
   }
 
-  /** 后台静默恢复登录态：延迟重试 getMe，成功则切换为已登录；期间用户若手动登录则放弃 */
+  /**
+   * 后台静默恢复登录态：带退避重试 getMe（拦截器会自动 refresh）。
+   * - 成功 → 切 authenticated
+   * - 重试中确认 401/403（refresh token 真废）→ 清 token 切 anonymous
+   * - 全部因网络失败 → 保留 token，最终切 anonymous（下次启动再试）
+   * 期间用户若手动登录/登出（this.pair 已变）则放弃恢复。
+   */
   private async recoverInBackground(pair: SdkPair): Promise<void> {
-    try {
-      await new Promise((r) => setTimeout(r, 1500));
-      if (this.pair !== pair) return;
-      const profile = await pair.userSdk.users.getMe();
-      if (this.pair !== pair) return;
-      this.registerTokenPersistence(pair);
-      this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
-      this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
-    } catch {
-      // 保持匿名，等下次启动 / 用户操作时再试
+    const delays = [1500, 3000, 5000];
+    for (const delay of delays) {
+      try {
+        await new Promise((r) => setTimeout(r, delay));
+        if (this.pair !== pair) return;
+        const profile = await pair.userSdk.users.getMe();
+        if (this.pair !== pair) return;
+        // listener 已在 doBoot 开头注册，这里不再重复注册
+        this.initBusiness(pair, env.chatUrl, toUserProfile(profile));
+        this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
+        return;
+      } catch (err) {
+        if (isAuthFailure(err)) {
+          // refresh token 确实失效
+          clearPersistedTokens();
+          if (this.pair === pair) {
+            this.pair = createSdkPair(env.userUrl, env.metaUrl);
+            this.setAuth({ status: "anonymous", profile: null });
+          }
+          return;
+        }
+        // 网络错误：继续下一次重试
+      }
+    }
+    // 重试耗尽：保留 token，落匿名态让用户看到登录/重试入口
+    if (this.pair === pair) {
+      this.setAuth({ status: "anonymous", profile: null });
     }
   }
 
@@ -194,8 +242,8 @@ class AppServices {
     const pair = createSdkPair(userUrl, metaUrl);
     try {
       await pair.userSdk.auth.login({ username: params.username, password: params.password });
-      const profile = await pair.userSdk.users.getMe();
-      this.pair = pair;
+      // 先持久化 + 注册 listener，再发 getMe：getMe 可能触发自动 refresh，
+      // listener 必须先就位，新 RT 才能落盘（与 boot 同一生命周期原则）。
       await writePersistedTokens({
         access: pair.userSdk.getToken() ?? "",
         refresh: pair.userSdk.getRefreshToken() ?? "",
@@ -204,6 +252,16 @@ class AppServices {
         chatUrl,
       });
       this.registerTokenPersistence(pair);
+      const profile = await pair.userSdk.users.getMe();
+      this.pair = pair;
+      // getMe 后再写一次，保证磁盘是最新 token（期间若发生 refresh 也已落盘）
+      await writePersistedTokens({
+        access: pair.userSdk.getToken() ?? "",
+        refresh: pair.userSdk.getRefreshToken() ?? "",
+        userUrl,
+        metaUrl,
+        chatUrl,
+      });
       this.initBusiness(pair, chatUrl, toUserProfile(profile));
       this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
     } catch (err) {
@@ -239,6 +297,15 @@ class AppServices {
         // 本应用固定归属 caloplan 服务名（后端 UserCreate.service_name 默认 "default"，这里显式指定）
         serviceName: "caloplan",
       });
+      // 先持久化 + 注册 listener，再发 getMe（同 login / boot 生命周期原则）
+      await writePersistedTokens({
+        access: pair.userSdk.getToken() ?? "",
+        refresh: pair.userSdk.getRefreshToken() ?? "",
+        userUrl,
+        metaUrl,
+        chatUrl,
+      });
+      this.registerTokenPersistence(pair);
       const profile = await pair.userSdk.users.getMe();
       this.pair = pair;
       await writePersistedTokens({
@@ -248,7 +315,6 @@ class AppServices {
         metaUrl,
         chatUrl,
       });
-      this.registerTokenPersistence(pair);
       this.initBusiness(pair, chatUrl, toUserProfile(profile));
       this.setAuth({ status: "authenticated", profile: toUserProfile(profile) });
     } catch (err) {

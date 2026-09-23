@@ -1,6 +1,7 @@
 import { HttpClient } from '../http/http-client.js';
 import { TokenManager } from '../auth/token-manager.js';
 import { TokenPair } from '../types/common.js';
+import { AuthError } from '../errors/index.js';
 import {
   EmailCodeResponse,
   EmailVerifyResponse,
@@ -79,6 +80,17 @@ export class AuthService {
       url: '/api/v1/auth/refresh',
       data: { refresh_token: token },
     });
+    // 关键：rawHttp 不经过拦截器，401/403 不会自动抛错。这里必须显式判断，
+    // 否则 refresh token 失效时会把响应体误当成 token 对，把内存 token 清成 undefined。
+    if (resp.status === 401 || resp.status === 403) {
+      throw new AuthError('Refresh token invalid or expired', {
+        statusCode: resp.status,
+        response: resp.data,
+      });
+    }
+    if (resp.status >= 400) {
+      throw new Error(`Refresh failed with status ${resp.status}`);
+    }
     const tokens = snakeToCamel<TokenPair>(resp.data);
     this.tokenManager.setToken(tokens.accessToken, tokens.refreshToken);
     return tokens;
